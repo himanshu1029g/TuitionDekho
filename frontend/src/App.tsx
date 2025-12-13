@@ -14,6 +14,8 @@ import NotFound from "./pages/NotFound";
 import ResetPassword from "./reset/ResetPassword";
 import ForgotPassword from "./reset/ForgotPassword";
 
+import ChatRoom from "./pages/ChatRoom";
+
 const queryClient = new QueryClient();
 
 const App = () => (
@@ -33,6 +35,7 @@ const App = () => (
         {/* Reset password routes */}
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
+        <Route path="/chat/:roomId" element={<ChatRoom />} />
 
         {/* 404 */}
         <Route path="*" element={<NotFound />} />

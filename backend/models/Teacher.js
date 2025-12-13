@@ -1,66 +1,15 @@
 const mongoose = require("mongoose");
 
 const teacherSchema = new mongoose.Schema({
-
-    userId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "User",
-        require: true
-    },
-    subjects: {
-        type: String,
-        require: true,
-
-    },
-    classes: {
-        type: String,
-        require: true,
-
-    },
-    experience: {
-        type: String,
-        require: true,
-
-    },
-    qualifications: {
-        type: String,
-        require: true,
-    },
-    achievements: {
-        type: [String],
-        default: [],
-    },
-    location: {
-        city: String,
-        state: String,
-        address: String,
-    }, 
-    mode: {
-        type: String,
-        enum: ['online', 'offline', 'both'],
-        required: true
-    },
-    availability: {
-        type: String,
-        default: 'Flexible'
-    },
-    rating: {
-        type: Number,
-        default: 0,
-        min: 0,
-        max: 5
-    },
-    bio: {
-        type: String,
-        maxlength: 500
-    },
-
-    profileImage: {
-        type: String
-    },
-
-
-
+    user: { type: mongoose.Schema.Types.ObjectId, ref: "User", unique: true },
+    fullName: { type: String, default: "" },
+    subjects: { type: [String], default: [] },
+    classes: { type: [String], default: [] },
+    achievements: { type: String, default: "" },
+    teachingMode: { type: String, default: "" },
+    bio: { type: String, default: "" },
+    location: { type: String, default: "" },
+    experience: { type: String, default: "" }
 }, {
     timestamps: true
 });

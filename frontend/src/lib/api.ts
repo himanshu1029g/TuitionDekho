@@ -158,3 +158,19 @@ export async function resetPassword(token: string, password: string) {
   const res = await api.post(`/auth/reset-password/${token}`, { password });
   return res.data;
 }
+
+// in your existing api.ts file (no file rename)
+export async function createOrGetChat(studentId: string, teacherId: string) {
+  const res = await api.post('/chats', { studentId, teacherId });
+  return res.data;
+}
+
+export async function getMessagesForRoom(roomId: string, page = 1, limit = 50) {
+  const res = await api.get(`/chats/${encodeURIComponent(roomId)}/messages`, { params: { page, limit } });
+  return res.data;
+}
+
+export async function getChatList(userId: string) {
+  const res = await api.get(`/chats/user/${userId}/list`);
+  return res.data;
+}
