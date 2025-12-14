@@ -9,20 +9,17 @@ export type TeacherSearchParams = {
   limit?: number | string;
 };
 
-// Update Teacher Profile
-export async function updateTeacherProfile(data: {
-  subjects: string;
-  classes: string;
-  experience: string;
-  qualifications: string;
-  location: { city: string; state?: string; address?: string };
-  mode: "online" | "offline" | "both" | string;
-  bio?: string;
-  achievements?: string[];
-}) {
-  const res = await api.put("teachers/profile", data);
+// 🔹 GET teacher profile by logged-in user's ID (Teacher Dashboard)
+export const getTeacherProfileByUserId = async (userId: string) => {
+  const res = await api.get(`/teachers/user/${userId}`);
+  return res.data.profile;
+};
+
+// 🔹 UPDATE / CREATE teacher profile
+export const updateTeacherProfile = async (payload: any) => {
+  const res = await api.put('/teachers/profile', payload);
   return res.data;
-}
+};
 
 // Create Teacher Profile
 export async function createTeacherProfile(data: {
@@ -106,11 +103,7 @@ export async function getTeacherById(id: string) {
   return res.data;
 }
 
-// Get teacher profile by userId
-export async function getTeacherProfileByUserId(userId: string) {
-  const res = await api.get(`teachers/user/${userId}`);
-  return res.data?.profile || res.data || null;
-}
+
 
 // Respond to meeting request
 export async function respondToRequest(id: string, payload: any) {

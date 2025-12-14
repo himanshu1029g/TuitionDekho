@@ -1,35 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { formatLocation } from '@/lib/utils';
 import { useParams, useNavigate } from 'react-router-dom';
-import {
-  Star,
-  MapPin,
-  BookOpen,
-  MessageSquare,
-  Award,
-  ArrowLeft
-} from 'lucide-react';
+import { Star, MapPin, BookOpen, MessageSquare, Award, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle
-} from '@/components/ui/card';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger
-} from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  RadioGroup,
-  RadioGroupItem
-} from '@/components/ui/radio-group';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUser } from '@/contexts/UserContext';
@@ -39,23 +17,18 @@ import { getTeacherById, requestMeeting } from '@/lib/api';
 
 type Teacher = {
   _id: string;
-  userId?: {
-    _id: string;
-    name: string;
-  };
+  userId?: { _id: string; name: string };
   fullName?: string;
   subjects?: string[] | string;
   classes?: string[] | string;
   achievements?: string[] | string;
-  teachingMode?: string;
   bio?: string;
-  location?: string;
   experience?: string;
+  location?: any;
+  fee?: string;
   rating?: number;
   reviews?: any[];
-  fee?: string;
   mode?: string;
-  availability?: string;
 };
 
 const TeacherProfile: React.FC = () => {
@@ -74,7 +47,6 @@ const TeacherProfile: React.FC = () => {
 
   useEffect(() => {
     let mounted = true;
-
     const loadTeacher = async () => {
       if (!id) return;
 
@@ -93,9 +65,7 @@ const TeacherProfile: React.FC = () => {
     };
 
     loadTeacher();
-    return () => {
-      mounted = false;
-    };
+    return () => { mounted = false; };
   }, [id]);
 
   const handleMeetingRequest = async () => {
@@ -110,19 +80,18 @@ const TeacherProfile: React.FC = () => {
     }
 
     try {
-      const resolvedTeacherId =
-        teacher?.userId?._id || teacher?._id || id;
+      const teacherId = teacher?.userId?._id || teacher?._id || id;
 
       const subjectsArr = Array.isArray(teacher?.subjects)
-        ? teacher?.subjects
+        ? teacher.subjects
         : (teacher?.subjects || '').split(',');
 
       const classesArr = Array.isArray(teacher?.classes)
-        ? teacher?.classes
+        ? teacher.classes
         : (teacher?.classes || '').split(',');
 
       await requestMeeting({
-        teacherId: resolvedTeacherId,
+        teacherId,
         teacherProfileId: teacher?._id,
         message: meetingMessage,
         mode: preferredMode === 'both' ? 'online' : preferredMode,
@@ -140,33 +109,19 @@ const TeacherProfile: React.FC = () => {
 
   const renderStars = (rating = 0) =>
     Array.from({ length: 5 }).map((_, i) => (
-      <Star
-        key={i}
-        className={`h-4 w-4 ${
-          i < rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'
-        }`}
-      />
+      <Star key={i} className={`h-4 w-4 ${i < rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
     ));
 
   if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   if (error || !teacher) return <div className="text-red-500">{error}</div>;
 
-  const subjectList = Array.isArray(teacher.subjects)
-    ? teacher.subjects
-    : (teacher.subjects || '').split(',');
-
-  const classList = Array.isArray(teacher.classes)
-    ? teacher.classes
-    : (teacher.classes || '').split(',');
-
-  const achievementsList = Array.isArray(teacher.achievements)
-    ? teacher.achievements
-    : (teacher.achievements || '').split(',');
+  const subjectList = Array.isArray(teacher.subjects) ? teacher.subjects : (teacher.subjects || '').split(',');
+  const classList = Array.isArray(teacher.classes) ? teacher.classes : (teacher.classes || '').split(',');
+  const achievementsList = Array.isArray(teacher.achievements) ? teacher.achievements : (teacher.achievements || '').split(',');
 
   return (
     <div className="min-h-screen bg-gray-50">
       <Header />
-
       <div className="container mx-auto px-4 py-8">
         <Button variant="ghost" onClick={() => navigate(-1)} className="mb-6">
           <ArrowLeft className="mr-2 h-4 w-4" />
@@ -178,13 +133,8 @@ const TeacherProfile: React.FC = () => {
           <div className="lg:col-span-2 space-y-6">
             <Card>
               <CardContent className="p-6">
-                <h1 className="text-3xl font-bold">
-                  {teacher.userId?.name || teacher.fullName}
-                </h1>
-
-                <p className="text-primary font-semibold mt-2">
-                  {subjectList.join(' • ')}
-                </p>
+                <h1 className="text-3xl font-bold">{teacher.userId?.name || teacher.fullName}</h1>
+                <p className="text-primary font-semibold mt-2">{subjectList.join(' • ')}</p>
 
                 <div className="flex items-center gap-4 text-sm mt-3 text-gray-600">
                   <div className="flex items-center">
@@ -201,15 +151,11 @@ const TeacherProfile: React.FC = () => {
                   </div>
                 </div>
 
-                <p className="mt-4 text-gray-700">
-                  {teacher.bio || 'No bio available.'}
-                </p>
+                <p className="mt-4 text-gray-700">{teacher.bio || 'No bio available.'}</p>
 
                 <div className="flex flex-wrap gap-2 mt-4">
                   {classList.map(cls => (
-                    <Badge key={cls} variant="secondary">
-                      {cls.trim()}
-                    </Badge>
+                    <Badge key={cls} variant="secondary">{cls.trim()}</Badge>
                   ))}
                 </div>
               </CardContent>
@@ -275,11 +221,7 @@ const TeacherProfile: React.FC = () => {
                     placeholder="Describe your requirements..."
                   />
 
-                  <RadioGroup
-                    value={preferredMode}
-                    onValueChange={v => setPreferredMode(v as any)}
-                    className="mt-4"
-                  >
+                  <RadioGroup value={preferredMode} onValueChange={v => setPreferredMode(v as any)} className="mt-4">
                     {['online', 'offline', 'both'].map(m => (
                       <div key={m} className="flex items-center gap-2">
                         <RadioGroupItem value={m} />
@@ -288,9 +230,7 @@ const TeacherProfile: React.FC = () => {
                     ))}
                   </RadioGroup>
 
-                  <Button onClick={handleMeetingRequest} className="mt-4 w-full">
-                    Send
-                  </Button>
+                  <Button onClick={handleMeetingRequest} className="mt-4 w-full">Send</Button>
                 </DialogContent>
               </Dialog>
             </CardContent>

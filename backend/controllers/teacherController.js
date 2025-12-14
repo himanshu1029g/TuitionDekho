@@ -1,156 +1,180 @@
 const Teacher = require('../models/Teacher');
-const User = require('../models/User');
+
+const mongoose = require('mongoose');
+
 
 /**
- * CREATE TEACHER PROFILE
+ * INTERNAL: ensure teacher profile exists
+ * (does NOT expose new route)
+ */
+const ensureTeacherProfile = async (userId) => {
+  let teacher = await Teacher.findOne({ userId });
+  if (!teacher) {
+    teacher = await Teacher.create({ userId });
+  }
+  return teacher;
+};
+
+
+
+/**
+ * Create teacher profile (one-time)
  */
 const createTeacherProfile = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    const existingProfile = await Teacher.findOne({ userId });
-    if (existingProfile) {
+    const existing = await Teacher.findOne({ userId });
+    if (existing) {
       return res.status(400).json({ message: 'Teacher profile already exists' });
     }
 
     const body = { ...req.body };
+
     if (Array.isArray(body.subjects)) body.subjects = body.subjects.join(',');
     if (Array.isArray(body.classes)) body.classes = body.classes.join(',');
 
-    const teacherProfile = new Teacher({
+    const profile = await Teacher.create({
       userId,
       ...body
     });
 
-    await teacherProfile.save();
-
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
-      message: 'Teacher profile created successfully',
-      profile: teacherProfile
+      profile
     });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+  } catch (err) {
+    console.error('createTeacherProfile error:', err);
+    return res.status(500).json({ message: 'Server error' });
   }
 };
 
 /**
- * UPDATE TEACHER PROFILE
+ * Update OR auto-create teacher profile (SAFE FIX)
  */
 const updateTeacherProfile = async (req, res) => {
   try {
     const userId = req.user._id;
 
-    const {
-      subjects,
-      classes,
-      experience,
-      qualifications,
-      location,
-      mode,
-      bio,
-      achievements
-    } = req.body;
+    // 🔑 critical fix
+    const teacher = await ensureTeacherProfile(userId);
 
-    let teacherProfile = await Teacher.findOne({ userId });
+    const update = {
+      subjects: Array.isArray(req.body.subjects)
+        ? req.body.subjects.join(',')
+        : req.body.subjects ?? teacher.subjects,
 
-    if (!teacherProfile) {
-      teacherProfile = new Teacher({
-        userId,
-        subjects: Array.isArray(subjects) ? subjects.join(',') : subjects,
-        classes: Array.isArray(classes) ? classes.join(',') : classes,
-        experience,
-        qualifications,
-        location,
-        mode,
-        bio,
-        achievements: Array.isArray(achievements) ? achievements : []
-      });
-    } else {
-      teacherProfile.subjects = Array.isArray(subjects) ? subjects.join(',') : subjects;
-      teacherProfile.classes = Array.isArray(classes) ? classes.join(',') : classes;
-      teacherProfile.experience = experience;
-      teacherProfile.qualifications = qualifications;
-      teacherProfile.location = location;
-      teacherProfile.mode = mode;
-      teacherProfile.bio = bio;
-      teacherProfile.achievements = Array.isArray(achievements) ? achievements : [];
-    }
+      classes: Array.isArray(req.body.classes)
+        ? req.body.classes.join(',')
+        : req.body.classes ?? teacher.classes,
 
-    await teacherProfile.save();
+      experience: req.body.experience ?? teacher.experience,
+      qualifications: req.body.qualifications ?? teacher.qualifications,
+      location: req.body.location ?? teacher.location,
+      mode: req.body.mode ?? teacher.mode,
+      bio: req.body.bio ?? teacher.bio,
 
-    const populatedProfile = await Teacher.findOne({ userId })
+      achievements: Array.isArray(req.body.achievements)
+        ? req.body.achievements
+        : teacher.achievements
+    };
+
+    Object.assign(teacher, update);
+    await teacher.save();
+
+    const populated = await Teacher.findOne({ userId })
       .populate('userId', 'name email phone');
 
-    res.json({
+    return res.json({
       success: true,
-      message: 'Profile updated successfully',
-      profile: populatedProfile
+      profile: populated
     });
-  } catch (error) {
-    console.error('Update teacher profile error:', error);
-    res.status(500).json({
-      success: false,
-      message: 'Failed to update profile',
-      error: error.message
-    });
+  } catch (err) {
+    console.error('updateTeacherProfile error:', err);
+    return res.status(500).json({ message: 'Server error' });
   }
 };
 
 /**
- * SEARCH TEACHERS
+ * Get teacher profile by teacher _id (student view)
+ */
+const getTeacherById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const teacher = await Teacher.findById(id)
+      .populate('userId', 'name email phone');
+
+    if (!teacher) {
+      return res.status(404).json({ message: 'Teacher not found' });
+    }
+
+    return res.json({
+      success: true,
+      teacher
+    });
+  } catch (err) {
+    console.error('getTeacherById error:', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+/**
+ * Get teacher profile by logged-in user (teacher dashboard)
+ * 🔧 FIX: auto-create instead of 404
+ */
+const getMyTeacherProfile = async (req, res) => {
+  try {
+    const userId = req.user._id;
+
+    const teacher = await ensureTeacherProfile(userId);
+
+    const populated = await Teacher.findOne({ userId })
+      .populate('userId', 'name email phone');
+
+    return res.json({
+      success: true,
+      teacher: populated
+    });
+  } catch (err) {
+    console.error('getMyTeacherProfile error:', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+/**
+ * Search teachers (student)
  */
 const searchTeachers = async (req, res) => {
   try {
-    const { subject, class: className, location, mode, page = 1, limit = 20 } = req.query;
+    const { subject, class: className, location, mode } = req.query;
     const query = {};
 
-    if (subject) {
-      query.subjects = { $regex: subject, $options: 'i' };
-    }
-
-    if (className) {
-      query.classes = { $regex: className, $options: 'i' };
-    }
-
-    if (mode) {
-      query.mode = mode.toLowerCase() === 'both'
-        ? { $in: ['online', 'offline', 'both'] }
-        : { $regex: mode, $options: 'i' };
-    }
+    if (subject) query.subjects = { $regex: subject, $options: 'i' };
+    if (className) query.classes = { $regex: className, $options: 'i' };
+    if (mode) query.mode = { $regex: mode, $options: 'i' };
 
     if (location) {
-      query.location = { $regex: location, $options: 'i' };
+      query.$or = [
+        { 'location.city': { $regex: location, $options: 'i' } },
+        { 'location.state': { $regex: location, $options: 'i' } },
+        { location: { $regex: location, $options: 'i' } }
+      ];
     }
 
-    const pageNum = Math.max(parseInt(page), 1);
-    const limitNum = Math.min(parseInt(limit), 100);
+    const teachers = await Teacher.find(query)
+      .populate('userId', 'name')
+      .sort({ createdAt: -1 });
 
-    const [teachers, total] = await Promise.all([
-      Teacher.find(query)
-        .populate('userId', 'name email phone')
-        .skip((pageNum - 1) * limitNum)
-        .limit(limitNum)
-        .sort({ createdAt: -1 }),
-      Teacher.countDocuments(query)
-    ]);
-
-    res.json({
+    return res.json({
       success: true,
-      total,
-      teachers,
-      currentPage: pageNum,
-      totalPages: Math.ceil(total / limitNum)
+      teachers
     });
-  } catch (error) {
-    console.error('searchTeachers error:', error);
-    res.status(500).json({ success: false, message: 'Server error' });
+  } catch (err) {
+    console.error('searchTeachers error:', err);
+    return res.status(500).json({ message: 'Server error' });
   }
 };
-
-/**
- * GET TEACHER PROFILE BY USER ID
- */
 const getTeacherProfileByUserId = async (req, res) => {
   try {
     const { userId } = req.params;
@@ -162,15 +186,25 @@ const getTeacherProfileByUserId = async (req, res) => {
       return res.status(404).json({ message: 'Teacher profile not found' });
     }
 
-    res.json({ success: true, teacher });
-  } catch (error) {
-    res.status(500).json({ message: 'Server error', error: error.message });
+    return res.json({
+      success: true,
+      profile: teacher
+    });
+  } catch (err) {
+    console.error('getTeacherProfileByUserId error:', err);
+    return res.status(500).json({ message: 'Server error' });
   }
 };
+
+
+
 
 module.exports = {
   createTeacherProfile,
   updateTeacherProfile,
+  getTeacherById,
+  getMyTeacherProfile,
   searchTeachers,
-  getTeacherProfileByUserId
+  getTeacherProfileByUserId,
+  ensureTeacherProfile 
 };

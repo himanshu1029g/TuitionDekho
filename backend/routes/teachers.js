@@ -1,20 +1,27 @@
 const express = require('express');
-const { 
-  createTeacherProfile, 
-  updateTeacherProfile, 
-  searchTeachers, 
-  getTeacherProfile,
-  getTeacherProfileByUserId
-} = require('../controllers/teacherController');
-const { teacherProfileValidation } = require('../middleware/validation');
+const router = express.Router();
 const auth = require('../middleware/auth');
 
-const router = express.Router();
+const {
+  createTeacherProfile,
+  updateTeacherProfile,
+  getTeacherById,
+  getMyTeacherProfile,
+  searchTeachers,
+  getTeacherProfileByUserId
+} = require('../controllers/teacherController');
 
-router.post('/profile', auth, teacherProfileValidation, createTeacherProfile);
-router.put('/profile', auth, updateTeacherProfile);
+// student
 router.get('/search', searchTeachers);
-router.get('/user/:userId', getTeacherProfileByUserId); // New route
-router.get('/:id', getTeacherProfile);
+router.get('/:id', getTeacherById);
+
+// teacher
+router.get('/me/profile', auth, getMyTeacherProfile);
+
+// 🔥 ADD THIS (for dashboard load)
+router.get('/user/:userId', auth, getTeacherProfileByUserId);
+
+router.post('/profile', auth, createTeacherProfile);
+router.put('/profile', auth, updateTeacherProfile);
 
 module.exports = router;

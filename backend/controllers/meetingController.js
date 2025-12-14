@@ -1,40 +1,53 @@
 const MeetingRequest = require('../models/MeetingRequest');
 const User = require('../models/User');
 const Teacher = require('../models/Teacher');
+const { ensureTeacherProfile } = require('./teacherController');
 
-// create a meeting request - student sends request to a teacher
+
+
+const { v4: uuidv4 } = require('uuid');
+
+// ============================
+// Create meeting request (Student → Teacher)
+// ============================
 const createRequest = async (req, res) => {
   try {
-    if (!req.user) return res.status(401).json({ success: false, message: 'Unauthorized' });
-    const studentId = req.user._id;
-    console.debug('createRequest called by', studentId, 'body=', req.body);
-    const { teacherId, teacherProfileId, subject, class: className, mode, message } = req.body;
+    if (!req.user)
+      return res.status(401).json({ success: false, message: 'Unauthorized' });
 
-    // Validate and provide detailed error messages
+    const studentId = req.user._id;
+    const {
+      teacherId,
+      teacherProfileId,
+      subject,
+      class: className,
+      mode,
+      message
+    } = req.body;
+
     const missing = [];
     if (!teacherId) missing.push('teacherId');
-    if (!subject || typeof subject !== 'string' || subject.trim() === '') missing.push('subject (must be non-empty string)');
-    if (!className || typeof className !== 'string' || className.trim() === '') missing.push('class (must be non-empty string)');
+    if (!subject?.trim()) missing.push('subject');
+    if (!className?.trim()) missing.push('class');
     if (!mode) missing.push('mode');
 
     if (missing.length > 0) {
-      console.warn('Meeting request validation failed:', missing, 'received:', req.body);
-      return res.status(400).json({ success: false, message: `Missing or invalid fields: ${missing.join(', ')}`, received: req.body });
+      return res.status(400).json({
+        success: false,
+        message: `Missing fields: ${missing.join(', ')}`
+      });
     }
 
-    let resolvedTeacherProfileId = teacherProfileId;
-    if (!resolvedTeacherProfileId) {
-      const teacherProfile = await Teacher.findOne({ userId: teacherId });
-      if (!teacherProfile) {
-        return res.status(404).json({ success: false, message: 'Teacher profile not found' });
-      }
-      resolvedTeacherProfileId = teacherProfile._id;
-    }
+    // 🔑 ensure teacher profile exists
+    const teacherProfile =
+      teacherProfileId
+        ? await Teacher.findById(teacherProfileId)
+        : await ensureTeacherProfile(teacherId);
 
-    const mr = new MeetingRequest({
+    const request = await MeetingRequest.create({
       studentId,
       teacherId,
-      teacherProfileId: resolvedTeacherProfileId,
+      teacherProfileId: teacherProfile._id,
       subject,
       class: className,
       mode,
@@ -42,20 +55,28 @@ const createRequest = async (req, res) => {
       status: 'pending'
     });
 
-    await mr.save();
-    await mr.populate('studentId', 'name email');
+    await request.populate('studentId', 'name email');
 
-    return res.status(201).json({ success: true, message: 'Request created', request: mr });
+    return res.status(201).json({
+      success: true,
+      request
+    });
   } catch (err) {
-    console.error('createRequest error', err);
-    return res.status(500).json({ success: false, message: 'Server error', error: err.message });
+    console.error('createRequest error:', err);
+    return res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// get requests for the logged-in teacher
+// ============================
+// Get requests for logged-in Teacher
+// ============================
 const getTeacherRequests = async (req, res) => {
   try {
     const teacherUserId = req.user._id;
+
+    // ensure profile exists (safe)
+    await ensureTeacherProfile(teacherUserId);
+
     const requests = await MeetingRequest.find({ teacherId: teacherUserId })
       .sort({ createdAt: -1 })
       .populate('studentId', 'name email')
@@ -64,149 +85,114 @@ const getTeacherRequests = async (req, res) => {
     return res.json({ success: true, requests });
   } catch (err) {
     console.error('getTeacherRequests error', err);
-    return res.status(500).json({ success: false, message: 'Server error', error: err.message });
+    return res.status(500).json({ success: false, message: 'Server error' });
   }
 };
 
-// get requests for the logged-in student
+
+// ============================
+// Get requests for logged-in Student
+// ============================
 const getStudentRequests = async (req, res) => {
   try {
     const studentUserId = req.user._id;
-    const requests = await MeetingRequest.find({ studentId: studentUserId })
+
+    const requests = await MeetingRequest.find({
+      studentId: studentUserId
+    })
       .sort({ createdAt: -1 })
       .populate('teacherId', 'name email')
       .populate('teacherProfileId');
 
     return res.json({ success: true, requests });
   } catch (err) {
-    console.error('getStudentRequests error', err);
-    return res.status(500).json({ success: false, message: 'Server error', error: err.message });
+    console.error('getStudentRequests error:', err);
+    return res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// delete request
+// ============================
+// Delete request (Student)
+// ============================
 const deleteRequest = async (req, res) => {
   try {
-    const studentUserId = req.user._id;
-    const reqId = req.params.id;
+    const removed = await MeetingRequest.findOneAndDelete({
+      _id: req.params.id,
+      studentId: req.user._id
+    });
 
-    const removed = await MeetingRequest.findOneAndDelete({ _id: reqId, studentId: studentUserId });
     if (!removed) {
-      return res.status(404).json({ success: false, message: 'Request not found or unauthorized' });
+      return res.status(404).json({
+        success: false,
+        message: 'Request not found or unauthorized'
+      });
     }
 
-    return res.json({ success: true, message: 'Request deleted' });
+    return res.json({ success: true });
   } catch (err) {
-    console.error('deleteRequest error', err);
-    return res.status(500).json({ success: false, message: 'Server error', error: err.message });
+    console.error('deleteRequest error:', err);
+    return res.status(500).json({ success: false, message: err.message });
   }
 };
 
 // ============================
-// NEW: Teacher Accept Request
+// Teacher Accept Request
 // ============================
-const { v4: uuidv4 } = require('uuid');
-
 const acceptRequest = async (req, res) => {
   try {
-    const teacherUserId = req.user._id;
-    const reqId = req.params.id;
+    const request = await MeetingRequest.findOne({
+      _id: req.params.id,
+      teacherId: req.user._id
+    });
 
-    const request = await MeetingRequest.findOne({ _id: reqId, teacherId: teacherUserId });
-    if (!request) {
-      return res.status(404).json({ success: false, message: "Request not found" });
-    }
+    if (!request)
+      return res.status(404).json({ success: false, message: 'Not found' });
 
-    const meetingId = uuidv4();
-    const meetingUrl = `https://meet.jit.si/${meetingId}`;
-
-    request.status = "accepted";
-    // store meeting link in model field `meetingLink`
+    const meetingUrl = `https://meet.jit.si/${uuidv4()}`;
+    request.status = 'accepted';
     request.meetingLink = meetingUrl;
+
     await request.save();
 
-    return res.json({
-      success: true,
-      message: "Request accepted",
-      meetingUrl
-    });
+    return res.json({ success: true, meetingUrl });
   } catch (err) {
-    console.error("acceptRequest error:", err);
-    return res.status(500).json({ success: false, message: "Server error", error: err.message });
+    console.error('acceptRequest error:', err);
+    return res.status(500).json({ success: false, message: err.message });
   }
 };
 
 // ============================
-// NEW: Teacher Reject Request
+// Teacher Reject Request
 // ============================
 const rejectRequest = async (req, res) => {
   try {
-    const teacherUserId = req.user._id;
-    const reqId = req.params.id;
+    const request = await MeetingRequest.findOne({
+      _id: req.params.id,
+      teacherId: req.user._id
+    });
 
-    const request = await MeetingRequest.findOne({ _id: reqId, teacherId: teacherUserId });
-    if (!request) {
-      return res.status(404).json({ success: false, message: "Request not found" });
-    }
+    if (!request)
+      return res.status(404).json({ success: false, message: 'Not found' });
 
-    request.status = "rejected";
+    request.status = 'rejected';
     await request.save();
 
-    return res.json({ success: true, message: "Request rejected" });
+    return res.json({ success: true });
   } catch (err) {
-    console.error("rejectRequest error:", err);
-    return res.status(500).json({ success: false, message: "Server error", error: err.message });
+    console.error('rejectRequest error:', err);
+    return res.status(500).json({ success: false, message: err.message });
   }
 };
 
-// Generic respond endpoint used by frontend: PUT /meetings/:id/respond
-const respondToRequest = async (req, res) => {
-  try {
-    const teacherUserId = req.user._id;
-    const reqId = req.params.id;
-    const { status, response, scheduledDate, scheduledTime } = req.body;
-
-    const request = await MeetingRequest.findOne({ _id: reqId, teacherId: teacherUserId });
-    if (!request) return res.status(404).json({ success: false, message: 'Request not found' });
-
-    if (status === 'accepted') {
-      request.status = 'accepted';
-      if (response) request.teacherResponse = response;
-      if (scheduledDate) request.scheduledDate = new Date(scheduledDate);
-      if (scheduledTime) request.scheduledTime = scheduledTime;
-      // optionally generate meeting link
-      // const meetingId = uuidv4();
-      // request.meetingLink = `https://meet.jit.si/${meetingId}`;
-    } else if (status === 'declined' || status === 'rejected') {
-      request.status = status === 'declined' ? 'declined' : 'rejected';
-      if (response) request.teacherResponse = response;
-    } else {
-      return res.status(400).json({ success: false, message: 'Invalid status' });
-    }
-
-    await request.save();
-
-    return res.json({ success: true, message: `Request ${request.status}` });
-  } catch (err) {
-    console.error('respondToRequest error', err);
-    return res.status(500).json({ success: false, message: 'Server error', error: err.message });
-  }
-};
-
-// create meeting (manual)
+// ============================
+// Create standalone meeting
+// ============================
 const createMeeting = async (req, res) => {
   try {
-    const meetingId = uuidv4();
-    const meetingUrl = `https://meet.jit.si/${meetingId}`;
-
-    return res.json({
-      success: true,
-      meetingId,
-      meetingUrl
-    });
+    const meetingUrl = `https://meet.jit.si/${uuidv4()}`;
+    return res.json({ success: true, meetingUrl });
   } catch (err) {
-    console.error("Meeting create error:", err);
-    res.status(500).json({ success: false, msg: "Server error" });
+    return res.status(500).json({ success: false, message: err.message });
   }
 };
 
@@ -217,6 +203,5 @@ module.exports = {
   deleteRequest,
   acceptRequest,
   rejectRequest,
-  createMeeting,
-  respondToRequest
+  createMeeting
 };
