@@ -196,6 +196,60 @@ const createMeeting = async (req, res) => {
   }
 };
 
+// Generic respond endpoint used by frontend: teacher responds with accept/decline/reject
+const respondToRequest = async (req, res) => {
+  try {
+    const teacherUserId = req.user && req.user._id;
+    if (!teacherUserId) return res.status(401).json({ success: false, message: 'Unauthorized' });
+
+    const reqId = req.params.id;
+    const { status, response, scheduledDate, scheduledTime } = req.body || {};
+
+    const request = await MeetingRequest.findOne({ _id: reqId, teacherId: teacherUserId });
+    if (!request) return res.status(404).json({ success: false, message: 'Request not found' });
+
+    if (status === 'accepted') {
+      request.status = 'accepted';
+      if (response) request.teacherResponse = response;
+      if (scheduledDate) request.scheduledDate = new Date(scheduledDate);
+      if (scheduledTime) request.scheduledTime = scheduledTime;
+      // optionally create meeting link if none present
+      if (!request.meetingLink) {
+        const id = uuidv4();
+        request.meetingLink = `https://meet.jit.si/${id}`;
+      }
+    } else if (status === 'declined' || status === 'rejected') {
+      request.status = status === 'declined' ? 'declined' : 'rejected';
+      if (response) request.teacherResponse = response;
+    } else {
+      return res.status(400).json({ success: false, message: 'Invalid status' });
+    }
+
+    await request.save();
+
+    // persist a notification for the student
+    try {
+      const Notification = require('../models/Notification');
+      await Notification.create({ userId: request.studentId, type: 'request_response', message: `Your request was ${request.status}. ${response ? 'Message: ' + response : ''}` });
+    } catch (e) {
+      console.error('Notification create error in respondToRequest:', e);
+    }
+
+    // emit a realtime event to the student if connected
+    try {
+      const { emitToUser } = require('../socket');
+      emitToUser(String(request.studentId), 'request-updated', { requestId: request._id, status: request.status, teacherResponse: request.teacherResponse, meetingLink: request.meetingLink });
+    } catch (e) {
+      console.error('emitToUser failed in respondToRequest:', e);
+    }
+
+    return res.json({ success: true, message: `Request ${request.status}` });
+  } catch (err) {
+    console.error('respondToRequest error', err);
+    return res.status(500).json({ success: false, message: 'Server error', error: err.message });
+  }
+};
+
 module.exports = {
   createRequest,
   getTeacherRequests,
@@ -203,5 +257,6 @@ module.exports = {
   deleteRequest,
   acceptRequest,
   rejectRequest,
-  createMeeting
+  createMeeting,
+  respondToRequest
 };

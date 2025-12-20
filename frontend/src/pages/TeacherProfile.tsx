@@ -44,6 +44,18 @@ const TeacherProfile: React.FC = () => {
 
   const [meetingMessage, setMeetingMessage] = useState('');
   const [studentCount, setStudentCount] = useState<number | null>(null);
+  const [selectedSubject, setSelectedSubject] = useState<string>('');
+  const [selectedClass, setSelectedClass] = useState<string>('');
+
+  useEffect(() => {
+    // initialize selected subject/class from teacher when loaded
+    if (teacher) {
+      const subs = Array.isArray(teacher.subjects) ? teacher.subjects : (teacher.subjects || '').split(',');
+      const cls = Array.isArray(teacher.classes) ? teacher.classes : (teacher.classes || '').split(',');
+      setSelectedSubject(subs[0]?.trim() || '');
+      setSelectedClass(cls[0]?.trim() || '');
+    }
+  }, [teacher]);
 
   useEffect(() => {
     let mounted = true;
@@ -113,8 +125,8 @@ const TeacherProfile: React.FC = () => {
         teacherProfileId: teacher?._id,
         message: meetingMessage,
         mode: preferredMode === 'both' ? 'online' : preferredMode,
-        subject: subjectsArr[0]?.trim(),
-        class: classesArr[0]?.trim()
+        subject: selectedSubject || subjectsArr[0]?.trim(),
+        class: selectedClass || classesArr[0]?.trim()
       });
 
       toast.success('Meeting request sent');
@@ -229,43 +241,46 @@ const TeacherProfile: React.FC = () => {
                     <DialogTitle>Send Request</DialogTitle>
                   </DialogHeader>
 
-                  <Textarea
-                    value={meetingMessage}
-                    onChange={e => setMeetingMessage(e.target.value)}
-                    placeholder="Describe your requirements..."
-                  />
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                    <div>
+                      <Label>Subject</Label>
+                      <select value={selectedSubject} onChange={e => setSelectedSubject(e.target.value)} className="w-full border rounded px-3 py-2">
+                        {(Array.isArray(teacher.subjects) ? teacher.subjects : (teacher.subjects || '').split(',')).map((s:any, idx:number) => (
+                          <option key={idx} value={s.trim()}>{s.trim()}</option>
+                        ))}
+                      </select>
+                    </div>
 
-                  <RadioGroup value={preferredMode} onValueChange={v => setPreferredMode(v as any)} className="mt-4">
-                    {['online', 'offline', 'both'].map(m => (
-                      <div key={m} className="flex items-center gap-2">
-                        <RadioGroupItem value={m} />
-                        <Label>{m}</Label>
-                      </div>
-                    ))}
-                  </RadioGroup>
+                    <div>
+                      <Label>Class</Label>
+                      <select value={selectedClass} onChange={e => setSelectedClass(e.target.value)} className="w-full border rounded px-3 py-2">
+                        {(Array.isArray(teacher.classes) ? teacher.classes : (teacher.classes || '').split(',')).map((c:any, idx:number) => (
+                          <option key={idx} value={c.trim()}>{c.trim()}</option>
+                        ))}
+                      </select>
+                    </div>
 
-                  <div className="space-y-2">
-                    <Button onClick={handleMeetingRequest} className="mt-4 w-full">Send Request</Button>
+                    <div>
+                      <Label>Mode</Label>
+                      <select value={preferredMode} onChange={e => setPreferredMode(e.target.value as any)} className="w-full border rounded px-3 py-2">
+                        <option value="online">Online</option>
+                        <option value="offline">Offline</option>
+                        <option value="both">Both</option>
+                      </select>
+                    </div>
+                  </div>
 
-                    {user?.role === 'student' && (
-                      <>
-                        <Button className="w-full" onClick={async () => {
-                          // create or get chat then navigate to chat page
-                          const studentId = user.id;
-                          const teacherId = teacher?.userId?._id || teacher?._id || id;
-                          try {
-                            const res = await createOrGetChat(studentId, teacherId);
-                            const roomId = res.roomId || res.data?.roomId || res;
-                            // navigate to chat layout and pass roomId in state
-                            navigate('/chat', { state: { roomId } });
-                          } catch (err) {
-                            toast.error('Failed to open chat');
-                          }
-                        }}>
-                          Message
-                        </Button>
-                      </>
-                    )}
+                  <div className="mt-3">
+                    <Label>Message</Label>
+                    <Textarea
+                      value={meetingMessage}
+                      onChange={e => setMeetingMessage(e.target.value)}
+                      placeholder="Write a short message that explains your requirements..."
+                    />
+                  </div>
+
+                  <div className="space-y-2 mt-4">
+                    <Button onClick={handleMeetingRequest} className="mt-2 w-full">Send Request</Button>
                   </div>
                 </DialogContent>
               </Dialog>

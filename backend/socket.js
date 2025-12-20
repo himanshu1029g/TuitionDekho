@@ -6,6 +6,16 @@ const Notification = require('./models/Notification');
 let io;
 const userSockets = new Map(); // userId -> socketId
 
+const emitToUser = (userId, event, payload) => {
+  try {
+    if (!io) return;
+    const socketId = userSockets.get(userId);
+    if (socketId) {
+      io.to(socketId).emit(event, payload);
+    }
+  } catch (e) { console.error('emitToUser error', e); }
+};
+
 const initSocket = (server) => {
   io = new Server(server, {
     cors: {
@@ -158,4 +168,4 @@ const initSocket = (server) => {
   });
 };
 
-module.exports = { initSocket };
+module.exports = { initSocket, emitToUser };

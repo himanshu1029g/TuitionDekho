@@ -73,6 +73,18 @@ const StudentDashboard = () => {
     if (!userId) return;
     // Register socket id for notifications (UserContext also registers on login)
     socket.emit("register", userId);
+
+    const onRequestUpdated = (data: any) => {
+      // update local meetingRequests if we have that request
+      setMeetingRequests(prev => prev.map(r => r._id === data.requestId ? { ...r, status: data.status, teacherResponse: data.teacherResponse, meetingLink: data.meetingLink } : r));
+      toast.success('Your meeting request was updated');
+    };
+
+    socket.on('request-updated', onRequestUpdated);
+
+    return () => {
+      socket.off('request-updated', onRequestUpdated);
+    };
   }, [userId]);
 
   /* ---------------- INCOMING CALL ---------------- */
@@ -224,10 +236,39 @@ const StudentDashboard = () => {
           {/* HOME */}
           <TabsContent value="home">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              <Card><CardContent className="p-6">Total {meetingRequests.length}</CardContent></Card>
-              <Card><CardContent className="p-6">Pending {pending.length}</CardContent></Card>
-              <Card><CardContent className="p-6">Accepted {accepted.length}</CardContent></Card>
-              <Card><CardContent className="p-6">Declined {declined.length}</CardContent></Card>
+              <Card>
+                <CardContent className="p-6">
+                  <div className="text-sm text-gray-500">Total Requests</div>
+                  <div className="text-3xl font-bold">{meetingRequests.length}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="text-sm text-gray-500">Incoming</div>
+                  <div className="text-3xl font-bold text-yellow-600">
+                    {pending.length}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="text-sm text-gray-500">Accepted</div>
+                  <div className="text-3xl font-bold text-green-600">
+                    {accepted.length}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="text-sm text-gray-500">Declined</div>
+                  <div className="text-3xl font-bold text-red-600">
+                    {declined.length}
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           </TabsContent>
 
@@ -236,10 +277,17 @@ const StudentDashboard = () => {
             {meetingRequests.map(r => (
               <Card key={r._id}>
                 <CardContent>
-                  <div className="font-semibold">{r.teacherId?.name}</div>
-                  <div className="text-sm">{r.subject}</div>
-                  <div>Status: {r.status}</div>
-                  {r.teacherResponse && <div>Teacher: {r.teacherResponse}</div>}
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-semibold">{r.teacherId?.name}</div>
+                      <div className="text-sm text-gray-600">Subject: {r.subject} • Class: {r.class} • Mode: {r.mode || '—'}</div>
+                    </div>
+                    <div className="text-sm">Status: <span className="font-medium">{r.status}</span></div>
+                  </div>
+
+                  <div className="mt-2 text-sm">Message: {r.message || '—'}</div>
+
+                  {r.teacherResponse && <div className="mt-2 text-sm text-green-700">Teacher: {r.teacherResponse}</div>}
                 </CardContent>
               </Card>
             ))}
@@ -333,7 +381,9 @@ const StudentDashboard = () => {
                   <CardContent>
                     <div className="font-semibold">To: {r.teacherId?.name}</div>
                     <div className="text-sm">Subject: {r.subject} — Class: {r.class}</div>
-                    <div className="text-sm">Status: {r.status} {r.teacherResponse && `— Teacher: ${r.teacherResponse}`}</div>
+                    <div className="mt-2 text-sm">Message: {r.message || '—'}</div>
+                    <div className="text-sm mt-2">Status: {r.status} {r.teacherResponse && `— Teacher: ${r.teacherResponse}`}</div>
+                    {r.meetingLink && <div className="mt-2"><a className="text-blue-600 underline" href={r.meetingLink} target="_blank" rel="noreferrer">Open meeting link</a></div>}
                   </CardContent>
                 </Card>
               ))}

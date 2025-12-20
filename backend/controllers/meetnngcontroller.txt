@@ -186,6 +186,20 @@ const respondToRequest = async (req, res) => {
 
     await request.save();
 
+    // persist notification for the student so they see it even if offline
+    try {
+      const Notification = require('../models/Notification');
+      await Notification.create({ userId: request.studentId, type: 'request_response', message: `Your request was ${request.status}. ${response ? 'Message: ' + response : ''}` });
+    } catch (e) {
+      console.error('Notification create error in respondToRequest:', e);
+    }
+
+    // emit a realtime event to the student if connected
+    try {
+      const { emitToUser } = require('../socket');
+      emitToUser(String(request.studentId), 'request-updated', { requestId: request._id, status: request.status, teacherResponse: request.teacherResponse, meetingLink: request.meetingLink });
+    } catch (e) { console.error('emitToUser failed in respondToRequest:', e); }
+
     return res.json({ success: true, message: `Request ${request.status}` });
   } catch (err) {
     console.error('respondToRequest error', err);

@@ -416,8 +416,9 @@ const TeacherDashboard = () => {
                   <div>
                     <div className="font-semibold">{r.studentId?.name}</div>
                     <div className="text-sm text-gray-500">
-                      {r.subject} — Class {r.class}
+                      {r.subject} — Class {r.class} • Mode: {r.mode || '—'}
                     </div>
+                    <div className="mt-2 text-sm">Message: {r.message || '—'}</div>
                   </div>
 
                   <Button onClick={() => setSelectedRequest(r)}>
@@ -664,6 +665,13 @@ const TeacherDashboard = () => {
               Respond to {selectedRequest?.studentId?.name}
             </DialogTitle>
           </DialogHeader>
+
+          <div className="mb-3 text-sm">
+            <div><strong>Subject:</strong> {selectedRequest?.subject}</div>
+            <div><strong>Class:</strong> {selectedRequest?.class}</div>
+            <div><strong>Mode:</strong> {selectedRequest?.mode || '—'}</div>
+            <div className="mt-2"><strong>Student message:</strong><div className="mt-1 p-2 bg-gray-50 border rounded">{selectedRequest?.message || '—'}</div></div>
+          </div>
 
           <Textarea
             placeholder="Response message"
