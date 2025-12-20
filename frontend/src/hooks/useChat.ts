@@ -38,10 +38,20 @@ export function useChat(roomId: string | null, currentUserId: string | null) {
     };
   }, [roomId]);
 
-  const sendMessage = (payload: { roomId: string; senderId: string; recipientId: string; text: string }) => {
+  const sendMessage = (payload: {
+    roomId: string;
+    senderId: string;
+    recipientId: string;
+    text: string;
+  }) => {
     socket.emit('send_message', payload);
-    setMessages(prev => [...prev, { ...payload, createdAt: new Date().toISOString() }]);
+    // ❌ DO NOT push locally — server will emit back
   };
 
-  return { messages, connected, sendMessage, socket };
+  return {
+    messages,
+    setMessages, // ✅ EXPOSED FOR HISTORY LOAD
+    connected,
+    sendMessage
+  };
 }

@@ -122,6 +122,11 @@ export async function getNotificationsCount() {
   return res.data;
 }
 
+export async function getTeacherStudentCount(profileId: string) {
+  const res = await api.get(`teachers/${profileId}/students-count`);
+  return res.data;
+}
+
 export async function markNotificationRead(id: string) {
   const res = await api.put(`notifications/${id}/read`);
   return res.data;
@@ -161,6 +166,12 @@ export async function createOrGetChat(studentId: string, teacherId: string) {
 export async function getMessagesForRoom(roomId: string, page = 1, limit = 50) {
   const res = await api.get(`/chats/${encodeURIComponent(roomId)}/messages`, { params: { page, limit } });
   return res.data;
+}
+
+// Call logs for current logged-in user (incoming and outgoing are useful)
+export async function getMyCallLogs() {
+  const res = await api.get("calls/my");
+  return res.data || [];
 }
 
 export async function getChatList(userId: string) {

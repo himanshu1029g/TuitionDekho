@@ -13,8 +13,10 @@ import NotFound from "./pages/NotFound";
 
 import ResetPassword from "./reset/ResetPassword";
 import ForgotPassword from "./reset/ForgotPassword";
+import ChatLayout from "./pages/ChatLayout";
 
-import ChatRoom from "./pages/ChatRoom";
+/* ✅ ADD THIS */
+import SocketEvents from "@/components/SocketEvents";
 
 const queryClient = new QueryClient();
 
@@ -24,18 +26,20 @@ const App = () => (
       <Toaster />
       <Sonner />
 
-      {/* No BrowserRouter here */}
+      {/* ✅ GLOBAL SOCKET LISTENER (VERY IMPORTANT) */}
+      <SocketEvents />
+
       <Routes>
         <Route path="/" element={<Index />} />
         <Route path="/student-dashboard" element={<StudentDashboard />} />
         <Route path="/teacher-dashboard" element={<TeacherDashboard />} />
         <Route path="/search" element={<SearchResults />} />
         <Route path="/teacher/:id" element={<TeacherProfile />} />
+        <Route path="/chat/" element={<ChatLayout />} />
 
         {/* Reset password routes */}
         <Route path="/forgot-password" element={<ForgotPassword />} />
         <Route path="/reset-password" element={<ResetPassword />} />
-        <Route path="/chat/:roomId" element={<ChatRoom />} />
 
         {/* 404 */}
         <Route path="*" element={<NotFound />} />

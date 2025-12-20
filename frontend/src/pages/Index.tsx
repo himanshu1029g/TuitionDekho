@@ -288,7 +288,7 @@ const Index = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {featuredTeachers.map((teacher: any) => (
-                <Card key={teacher._id || teacher.id} className="hover-lift border-0 shadow-lg">
+                <Card key={teacher._id || teacher.id} onClick={() => navigate(`/teacher/${teacher._id || teacher.id}`)} className="hover-lift border-0 shadow-lg cursor-pointer">
                   <CardHeader className="text-center">
                     <div className="w-20 h-20 bg-gradient-to-br from-primary to-secondary rounded-full mx-auto mb-4 flex items-center justify-center">
                       <span className="text-2xl font-bold text-white">{(teacher.userId?.name || teacher.name || '').charAt(0)}</span>
@@ -299,13 +299,9 @@ const Index = () => {
                     </CardDescription>
                   </CardHeader>
                   <CardContent className="text-center space-y-3">
-                    <div className="flex items-center justify-center space-x-1">
-                      <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                      <span className="font-semibold">{teacher.rating ?? 0}</span>
-                    </div>
                     <div className="flex items-center justify-center space-x-2">
                       <Award className="h-4 w-4 text-gray-500" />
-                      <span className="text-sm text-gray-600">{teacher.experience || teacher.experience} experience</span>
+                      <span className="text-sm text-gray-600">{teacher.experience || '—'} experience</span>
                     </div>
                     <div className="flex items-center justify-center space-x-2">
                       <MapPin className="h-4 w-4 text-gray-500" />
@@ -316,7 +312,7 @@ const Index = () => {
                     </Badge>
                   </CardContent>
                 </Card>
-              ))}
+              ))} 
             </div>
         </div>
       </section>

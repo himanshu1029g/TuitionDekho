@@ -1,0 +1,141 @@
+chunk-R6S4VRB5.js?v=d6c4dc45:21551 Download the React DevTools for a better development experience: https://reactjs.org/link/react-devtools
+react-router-dom.js?v=d6c4dc45:4393 ⚠️ React Router Future Flag Warning: React Router will begin wrapping state updates in `React.startTransition` in v7. You can use the `v7_startTransition` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_starttransition.
+warnOnce @ react-router-dom.js?v=d6c4dc45:4393
+react-router-dom.js?v=d6c4dc45:4393 ⚠️ React Router Future Flag Warning: Relative route resolution within Splat routes is changing in v7. You can use the `v7_relativeSplatPath` future flag to opt-in early. For more information, see https://reactrouter.com/v6/upgrading/future#v7_relativesplatpath.
+warnOnce @ react-router-dom.js?v=d6c4dc45:4393
+socket__io-client.js?v=d6c4dc45:1059 WebSocket connection to 'ws://localhost:5000/socket.io/?EIO=4&transport=websocket' failed: 
+createSocket @ socket__io-client.js?v=d6c4dc45:1059
+doOpen @ socket__io-client.js?v=d6c4dc45:986
+open @ socket__io-client.js?v=d6c4dc45:503
+_open @ socket__io-client.js?v=d6c4dc45:1328
+_SocketWithoutUpgrade @ socket__io-client.js?v=d6c4dc45:1289
+SocketWithUpgrade @ socket__io-client.js?v=d6c4dc45:1633
+Socket @ socket__io-client.js?v=d6c4dc45:1759
+open @ socket__io-client.js?v=d6c4dc45:3125
+(anonymous) @ socket__io-client.js?v=d6c4dc45:3343
+socket__io-client.js?v=d6c4dc45:1059 WebSocket connection to 'ws://localhost:5000/socket.io/?EIO=4&transport=websocket' failed: 
+createSocket @ socket__io-client.js?v=d6c4dc45:1059
+doOpen @ socket__io-client.js?v=d6c4dc45:986
+open @ socket__io-client.js?v=d6c4dc45:503
+_open @ socket__io-client.js?v=d6c4dc45:1328
+_SocketWithoutUpgrade @ socket__io-client.js?v=d6c4dc45:1289
+SocketWithUpgrade @ socket__io-client.js?v=d6c4dc45:1633
+Socket @ socket__io-client.js?v=d6c4dc45:1759
+open @ socket__io-client.js?v=d6c4dc45:3125
+(anonymous) @ socket__io-client.js?v=d6c4dc45:3343
+socket__io-client.js?v=d6c4dc45:1059 WebSocket connection to 'ws://localhost:5000/socket.io/?EIO=4&transport=websocket' failed: 
+createSocket @ socket__io-client.js?v=d6c4dc45:1059
+doOpen @ socket__io-client.js?v=d6c4dc45:986
+open @ socket__io-client.js?v=d6c4dc45:503
+_open @ socket__io-client.js?v=d6c4dc45:1328
+_SocketWithoutUpgrade @ socket__io-client.js?v=d6c4dc45:1289
+SocketWithUpgrade @ socket__io-client.js?v=d6c4dc45:1633
+Socket @ socket__io-client.js?v=d6c4dc45:1759
+open @ socket__io-client.js?v=d6c4dc45:3125
+(anonymous) @ socket__io-client.js?v=d6c4dc45:3343
+socket__io-client.js?v=d6c4dc45:1059 WebSocket connection to 'ws://localhost:5000/socket.io/?EIO=4&transport=websocket' failed: 
+createSocket @ socket__io-client.js?v=d6c4dc45:1059
+doOpen @ socket__io-client.js?v=d6c4dc45:986
+open @ socket__io-client.js?v=d6c4dc45:503
+_open @ socket__io-client.js?v=d6c4dc45:1328
+_SocketWithoutUpgrade @ socket__io-client.js?v=d6c4dc45:1289
+SocketWithUpgrade @ socket__io-client.js?v=d6c4dc45:1633
+Socket @ socket__io-client.js?v=d6c4dc45:1759
+open @ socket__io-client.js?v=d6c4dc45:3125
+(anonymous) @ socket__io-client.js?v=d6c4dc45:3343
+socket__io-client.js?v=d6c4dc45:1059 WebSocket connection to 'ws://localhost:5000/socket.io/?EIO=4&transport=websocket' failed: 
+createSocket @ socket__io-client.js?v=d6c4dc45:1059
+doOpen @ socket__io-client.js?v=d6c4dc45:986
+open @ socket__io-client.js?v=d6c4dc45:503
+_open @ socket__io-client.js?v=d6c4dc45:1328
+_SocketWithoutUpgrade @ socket__io-client.js?v=d6c4dc45:1289
+SocketWithUpgrade @ socket__io-client.js?v=d6c4dc45:1633
+Socket @ socket__io-client.js?v=d6c4dc45:1759
+open @ socket__io-client.js?v=d6c4dc45:3125
+(anonymous) @ socket__io-client.js?v=d6c4dc45:3343
+
+
+
+
+or in terminal 
+
+n] watching path(s): *.*
+[nodemon] watching extensions: js,mjs,cjs,json
+[nodemon] starting `node server.js`
+[dotenv@17.2.1] injecting env (12) from .env -- tip: 📡 observe env with Radar: https://dotenvx.com/radar
+{"level":"WARN","timestamp":"2025-12-18T17:47:21.739Z","logger":"kafkajs","message":"KafkaJS v2.0.0 switched default partitioner. To retain the same partitioning behavior as in previous versions, create the producer with the option \"createPartitioner: Partitioners.LegacyPartitioner\". See the migration guide at https://kafka.js.org/docs/migration-guide-v2.0.0#producer-new-default-partitioner for details. Silence this warning by setting the environment variable \"KAFKAJS_NO_PARTITIONER_WARNING=1\""}
+[dotenv@17.2.1] injecting env (0) from .env -- tip: 🔐 prevent committing .env to code: https://dotenvx.com/precommit
+🚀 Server running on port 5000
+Redis unavailable (caching disabled)
+{"level":"ERROR","timestamp":"2025-12-18T17:47:22.626Z","logger":"kafkajs","message":"[Connection] Connection error: ","broker":"localhost:9092","clientId":"tuitiondekho-backend","stack":"AggregateError [ECONNREFUSED]: \n    at internalConnectMultiple (node:net:1139:18)\n    at afterConnectMultiple (node:net:1714:7)"}
+{"level":"ERROR","timestamp":"2025-12-18T17:47:22.628Z","logger":"kafkajs","message":"[BrokerPool] Failed to connect to seed broker, trying another broker from the list: Connection error: ","retryCount":0,"retryTime":112}
+{"level":"ERROR","timestamp":"2025-12-18T17:47:22.750Z","logger":"kafkajs","message":"[Connection] Connection error: ","broker":"localhost:9092","clientId":"tuitiondekho-backend","stack":"AggregateError [ECONNREFUSED]: \n    at internalConnectMultiple (node:net:1139:18)\n    at afterConnectMultiple (node:net:1714:7)"}
+{"level":"ERROR","timestamp":"2025-12-18T17:47:22.754Z","logger":"kafkajs","message":"[BrokerPool] Failed to connect to seed broker, trying another broker from the list: Connection error: ","retryCount":1,"retryTime":240}
+{"level":"ERROR","timestamp":"2025-12-18T17:47:23.008Z","logger":"kafkajs","message":"[Connection] Connection error: ","broker":"localhost:9092","clientId":"tuitiondekho-backend","stack":"AggregateError [ECONNREFUSED]: \n    at internalConnectMultiple (node:net:1139:18)\n    at afterConnectMultiple (node:net:1714:7)"}
+{"level":"ERROR","timestamp":"2025-12-18T17:47:23.011Z","logger":"kafkajs","message":"[BrokerPool] Failed to connect to seed broker, trying another broker from the list: Connection error: ","retryCount":2,"retryTime":462}
+Kafka not available - continuing without event streaming: Connection error: 
+MongoDB Connected: localhost
+process env =  mongodb://localhost:27017
+Redis unavailable (caching disabled)
+🔥 Socket connected: UaCdP3X9X0PoFDcPAAAB
+✅ User registered 6932bab9bd6cf667cd2d61c9
+Redis unavailable (caching disabled)
+Redis unavailable (caching disabled)
+Redis unavailable (caching disabled)
+Redis unavailable (caching disabled)
+Redis unavailable (caching disabled)
+Redis unavailable (caching disabled)
+Redis unavailable (caching disabled)
+Redis unavailable (caching disabled)
+Redis unavailable (caching disabled)
+Redis unavailable (caching disabled)
+Redis unavailable (caching disabled)
+Redis unavailable (caching disabled)
+Redis unavailable (caching disabled)
+Redis unavailable (caching disabled)
+Redis unavailable (caching disabled)
+Redis unavailable (caching disabled)
+Redis unavailable (caching disabled)
+Redis unavailable (caching disabled)
+🔥 Socket connected: 15Su9xQS1KBtcYdbAAAD
+✅ User registered 693413ff3a57c204ab3a735d
+Redis unavailable (caching disabled)
+Redis unavailable (caching disabled)
+Redis unavailable (caching disabled)
+D:\4th year\Tuition at 16-11-25\backend\node_modules\mongoose\lib\document.js:3358
+    this.$__.validationError = new ValidationError(this);
+                               ^
+
+ValidationError: CallLog validation failed: status: `ringing` is not a valid enum value for path `status`.
+    at Document.invalidate (D:\4th year\Tuition at 16-11-25\backend\node_modules\mongoose\lib\document.js:3358:32)
+    at D:\4th year\Tuition at 16-11-25\backend\node_modules\mongoose\lib\document.js:3119:17
+    at D:\4th year\Tuition at 16-11-25\backend\node_modules\mongoose\lib\schemaType.js:1416:9
+    at process.processTicksAndRejections (node:internal/process/task_queues:85:11) {
+  errors: {
+    status: ValidatorError: `ringing` is not a valid enum value for path `status`.
+        at validate (D:\4th year\Tuition at 16-11-25\backend\node_modules\mongoose\lib\schemaType.js:1413:13)
+        at SchemaType.doValidate (D:\4th year\Tuition at 16-11-25\backend\node_modules\mongoose\lib\schemaType.js:1397:7)    
+        at D:\4th year\Tuition at 16-11-25\backend\node_modules\mongoose\lib\document.js:3111:18
+        at process.processTicksAndRejections (node:internal/process/task_queues:85:11) {
+      properties: {
+        validator: [Function (anonymous)],
+        message: '`ringing` is not a valid enum value for path `status`.',
+        type: 'enum',
+        enumValues: [ 'started', 'answered', 'missed' ],
+        path: 'status',
+        fullPath: undefined,
+        value: 'ringing',
+        length: 7
+      },
+      kind: 'enum',
+      path: 'status',
+      value: 'ringing',
+      reason: undefined,
+      [Symbol(mongoose#validatorError)]: true
+    }
+  },
+  _message: 'CallLog validation failed'
+}
+
+Node.js v22.15.0
+[nodemon] app crashed - waiting for file changes before starting..

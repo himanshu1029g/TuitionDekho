@@ -6,6 +6,7 @@ const {
   createTeacherProfile,
   updateTeacherProfile,
   getTeacherById,
+  getTeacherStudentsCount,
   getMyTeacherProfile,
   searchTeachers,
   getTeacherProfileByUserId
@@ -13,6 +14,8 @@ const {
 
 // student
 router.get('/search', searchTeachers);
+// returns number of accepted students (for profile stat)
+router.get('/:id/students-count', getTeacherStudentsCount);
 router.get('/:id', getTeacherById);
 
 // teacher

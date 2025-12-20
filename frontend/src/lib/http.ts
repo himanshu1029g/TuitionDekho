@@ -1,28 +1,34 @@
 import axios from 'axios';
 
-// Normalize base URL: ensure it contains the '/api' prefix used by the backend
-// Use environment variable or default to localhost
 let envBaseRaw = import.meta.env.VITE_API_URL || 'http://localhost:5000';
 let envBase = String(envBaseRaw).trim();
-// Strip surrounding quotes and any trailing semicolon
 envBase = envBase.replace(/^['"]+/, '').replace(/['";]+$/, '');
-const normalizedBase = envBase.endsWith('/api') ? envBase : envBase.replace(/\/$/, '') + '/api';
+const normalizedBase = envBase.endsWith('/api')
+  ? envBase
+  : envBase.replace(/\/$/, '') + '/api';
 
-const api = axios.create({
-  // Now guaranteed to point at backend API root, e.g. http://localhost:5000/api
+export const api = axios.create({
   baseURL: normalizedBase,
   withCredentials: true,
 });
 
+/**
+ * Set or clear auth token
+ */
 export function setAuthToken(token: string | null) {
   if (token) {
-    api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+    api.defaults.headers.common.Authorization = `Bearer ${token}`;
     localStorage.setItem('authToken', token);
   } else {
-    delete api.defaults.headers.common['Authorization'];
+    delete api.defaults.headers.common.Authorization;
     localStorage.removeItem('authToken');
   }
 }
 
-export { api };
-// export default api;
+/**
+ * 🔥 IMPORTANT: restore token on app reload
+ */
+const savedToken = localStorage.getItem('authToken');
+if (savedToken) {
+  api.defaults.headers.common.Authorization = `Bearer ${savedToken}`;
+}

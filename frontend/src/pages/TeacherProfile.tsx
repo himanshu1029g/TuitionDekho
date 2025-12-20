@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { formatLocation } from '@/lib/utils';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Star, MapPin, BookOpen, MessageSquare, Award, ArrowLeft } from 'lucide-react';
+import { MapPin, BookOpen, MessageSquare, Award, ArrowLeft } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,7 +13,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useUser } from '@/contexts/UserContext';
 import { toast } from 'sonner';
 import Header from '@/components/Header';
-import { getTeacherById, requestMeeting } from '@/lib/api';
+import { getTeacherById, requestMeeting, createOrGetChat, getTeacherStudentCount } from '@/lib/api';
 
 type Teacher = {
   _id: string;
@@ -22,6 +22,7 @@ type Teacher = {
   subjects?: string[] | string;
   classes?: string[] | string;
   achievements?: string[] | string;
+  qualifications?: string | string[];
   bio?: string;
   experience?: string;
   location?: any;
@@ -42,6 +43,23 @@ const TeacherProfile: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
 
   const [meetingMessage, setMeetingMessage] = useState('');
+  const [studentCount, setStudentCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    let mounted = true;
+    const loadCount = async () => {
+      if (!teacher) return;
+      try {
+        const res = await getTeacherStudentCount(teacher._id);
+        if (!mounted) return;
+        setStudentCount(res.count ?? 0);
+      } catch (e) {
+        console.error('Failed to load student count', e);
+      }
+    };
+    loadCount();
+    return () => { mounted = false; };
+  }, [teacher]);
   const [preferredMode, setPreferredMode] = useState<'online' | 'offline' | 'both'>('online');
   const [isRequestDialogOpen, setIsRequestDialogOpen] = useState(false);
 
@@ -107,10 +125,7 @@ const TeacherProfile: React.FC = () => {
     }
   };
 
-  const renderStars = (rating = 0) =>
-    Array.from({ length: 5 }).map((_, i) => (
-      <Star key={i} className={`h-4 w-4 ${i < rating ? 'fill-yellow-400 text-yellow-400' : 'text-gray-300'}`} />
-    ));
+
 
   if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
   if (error || !teacher) return <div className="text-red-500">{error}</div>;
@@ -138,10 +153,6 @@ const TeacherProfile: React.FC = () => {
 
                 <div className="flex items-center gap-4 text-sm mt-3 text-gray-600">
                   <div className="flex items-center">
-                    {renderStars(teacher.rating)}
-                    <span className="ml-2">({reviews.length})</span>
-                  </div>
-                  <div className="flex items-center">
                     <BookOpen className="h-4 w-4 mr-1" />
                     {teacher.experience || '—'}
                   </div>
@@ -150,8 +161,6 @@ const TeacherProfile: React.FC = () => {
                     {formatLocation(teacher.location)}
                   </div>
                 </div>
-
-                <p className="mt-4 text-gray-700">{teacher.bio || 'No bio available.'}</p>
 
                 <div className="flex flex-wrap gap-2 mt-4">
                   {classList.map(cls => (
@@ -197,11 +206,16 @@ const TeacherProfile: React.FC = () => {
           {/* SIDEBAR */}
           <Card className="sticky top-24">
             <CardHeader>
-              <CardTitle>{teacher.fee || '—'}</CardTitle>
-              <CardDescription>Per hour</CardDescription>
+              <CardTitle>Qualifications</CardTitle>
+              <CardDescription>{Array.isArray(teacher.qualifications) ? teacher.qualifications.join(', ') : (teacher.qualifications || '—')}</CardDescription>
             </CardHeader>
 
             <CardContent>
+              <div className="mb-4">
+                <div className="text-sm text-gray-500">Students enrolled</div>
+                <div className="text-xl font-semibold">{typeof studentCount === 'number' ? studentCount : '—'}</div>
+              </div>
+
               <Dialog open={isRequestDialogOpen} onOpenChange={setIsRequestDialogOpen}>
                 <DialogTrigger asChild>
                   <Button className="w-full">
@@ -230,7 +244,29 @@ const TeacherProfile: React.FC = () => {
                     ))}
                   </RadioGroup>
 
-                  <Button onClick={handleMeetingRequest} className="mt-4 w-full">Send</Button>
+                  <div className="space-y-2">
+                    <Button onClick={handleMeetingRequest} className="mt-4 w-full">Send Request</Button>
+
+                    {user?.role === 'student' && (
+                      <>
+                        <Button className="w-full" onClick={async () => {
+                          // create or get chat then navigate to chat page
+                          const studentId = user.id;
+                          const teacherId = teacher?.userId?._id || teacher?._id || id;
+                          try {
+                            const res = await createOrGetChat(studentId, teacherId);
+                            const roomId = res.roomId || res.data?.roomId || res;
+                            // navigate to chat layout and pass roomId in state
+                            navigate('/chat', { state: { roomId } });
+                          } catch (err) {
+                            toast.error('Failed to open chat');
+                          }
+                        }}>
+                          Message
+                        </Button>
+                      </>
+                    )}
+                  </div>
                 </DialogContent>
               </Dialog>
             </CardContent>

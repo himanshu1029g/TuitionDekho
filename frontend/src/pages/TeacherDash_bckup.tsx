@@ -1,521 +1,529 @@
 import React, { useEffect, useState } from "react";
-import { createMeeting } from "@/lib/api";
+import Header from "@/components/Header";
+import { useUser } from "@/contexts/UserContext";
+import { toast } from "sonner";
 import {
-Select,
-SelectContent,
-SelectItem,
-SelectTrigger,
-SelectValue,
-} from "@/components/ui/select";
-import { Users, MessageSquare, Star, Calendar, BookOpen, MapPin, Clock, Settings, Bell, TrendingUp } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+  Home,
+  Users,
+  MessageSquare,
+  Calendar,
+  Settings,
+  Video
+} from "lucide-react";
+
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogDescription } from '@/components/ui/dialog';
-import { Textarea } from '@/components/ui/textarea';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { useUser } from '@/contexts/UserContext';
-import { toast } from 'sonner';
-import Header from '@/components/Header'; // Make sure Header is imported
+
+import { socket } from "@/lib/socket";
+import {
+  getTeacherRequests,
+  getTeacherProfileByUserId,
+  updateTeacherProfile,
+  getMessagesForRoom
+} from "@/lib/api";
 
 const TeacherDashboard = () => {
-const { user } = useUser();
-const [selectedRequest, setSelectedRequest] = useState<any>(null);
-const [responseMessage, setResponseMessage] = useState('');
-const [proposedTime, setProposedTime] = useState('');
+  const { user } = useUser();
+  const userId = user?.id || (user as any)?._id;
 
-// Dynamic data
-const [meetingRequests, setMeetingRequests] = useState<any[]>([]);
-const [loading, setLoading] = useState(true);
-const [error, setError] = useState<string | null>(null);
-const [stats, setStats] = useState({ totalStudents: 0, activeRequests: 0, completedSessions: 0, rating: 0 });
-const [upcomingClasses, setUpcomingClasses] = useState<any[]>([]);
-const [profile, setProfile] = useState<any>(null);
-const [editing, setEditing] = useState(false);
-const [profileLoading, setProfileLoading] = useState(false);
-// Add controlled state for Select mode
-const [modeState, setModeState] = useState<string>('both');
+  const [loading, setLoading] = useState(true);
+  const [meetingRequests, setMeetingRequests] = useState<any[]>([]);
+  const [profile, setProfile] = useState<any>(null);
 
-// local userId (cast to any to satisfy TS if context not typed)
-const userId = (user as any)?._id;
+  // Chat
+  const [activeChat, setActiveChat] = useState<any>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [messageText, setMessageText] = useState("");
 
-useEffect(() => {
-let mounted = true;
-async function fetchData() {
-if (!userId) {
-setLoading(false);
-return;
-}
-setLoading(true);
-try {
-const { getTeacherRequests, getTeacherProfileByUserId } = await import('@/lib/api');
+  // requests
+  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [responseMessage, setResponseMessage] = useState('');
+  const [proposedTime, setProposedTime] = useState('');
 
-const [requests, profileObj] = await Promise.all([
-getTeacherRequests(),
-getTeacherProfileByUserId(userId)
-]);
 
-if (!mounted) return;
+  // Profile edit
+  const [editing, setEditing] = useState(false);
+  const [profileLoading, setProfileLoading] = useState(false);
+  const [modeState, setModeState] = useState<"online" | "offline" | "both">("both");
 
-// getTeacherRequests returns array now
-setMeetingRequests(requests || []);
-setProfile(profileObj || null);
-if (profileObj?.mode) setModeState(profileObj.mode);
+  /* ---------------- LOAD DASHBOARD ---------------- */
+  useEffect(() => {
+    if (!userId) return;
 
-// compute stats from requests
-const totalStudents = new Set((requests || []).map((r: any) => r.studentId?._id || r.studentId)).size;
-const activeRequests = (requests || []).filter((r: any) => r.status === 'pending').length;
-const completedSessions = (requests || []).filter((r: any) => r.status === 'completed').length;
+    (async () => {
+      try {
+        const [reqs, prof] = await Promise.all([
+          getTeacherRequests(),
+          getTeacherProfileByUserId(userId)
+        ]);
 
-setStats({ totalStudents, activeRequests, completedSessions, rating: profileObj?.rating || 0 });
-} catch (err: any) {
-console.error('fetchData', err);
-if (mounted) setError(err?.message || 'Failed to load');
-} finally {
-if (mounted) setLoading(false);
-}
-}
-fetchData();
-return () => { mounted = false; };
-}, [userId]);
+        setMeetingRequests(reqs || []);
+        setProfile(prof || {});
+        if (prof?.mode) setModeState(prof.mode);
+      } catch {
+        toast.error("Failed to load dashboard");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [userId]);
 
-const handleResponse = async (requestId: string, action: 'accept' | 'decline') => {
-try {
-const { respondToRequest } = await import('@/lib/api');
-const payload: any = {
-status: action === 'accept' ? 'accepted' : 'declined',
-response: responseMessage.trim() || ''
-};
-if (action === 'accept' && proposedTime) {
-const dt = new Date(proposedTime);
-payload.scheduledDate = dt.toISOString();
-payload.scheduledTime = dt.toLocaleTimeString();
-}
-const res = await respondToRequest(requestId, payload);
-toast.success(res.message || `Request ${payload.status} successfully`);
-// update local state
-setMeetingRequests((prev) => prev.map((r: any) => r._id === requestId ? { ...r, status: payload.status, teacherResponse: responseMessage, scheduledDate: payload.scheduledDate } : r));
-setSelectedRequest(null);
-setResponseMessage('');
-setProposedTime('');
-} catch (e: any) {
-toast.error(e?.message || 'Failed to respond');
-}
-}; const getStatusColor = (status: string) => {
-switch (status) {
-case 'pending': return 'bg-yellow-100 text-yellow-800';
-case 'responded': return 'bg-blue-100 text-blue-800';
-case 'accepted': return 'bg-green-100 text-green-800';
-case 'declined':
-case 'rejected': return 'bg-red-100 text-red-800';
-default: return 'bg-gray-100 text-gray-800';
-}
-};
+  /* ---------------- CHAT HELPERS ---------------- */
+  const makeRoomId = (a: string, b: string) =>
+    a < b ? `chat_${a}_${b}` : `chat_${b}_${a}`;
 
-// Save profile handler (used when editing)
-const handleSaveProfile = async (e?: React.FormEvent) => {
-if (e) e.preventDefault();
-if (!profile) return;
-setProfileLoading(true);
-try {
-const { updateTeacherProfile } = await import('@/lib/api');
+  const openChat = async (student: any) => {
+    const roomId = makeRoomId(userId!, student._id);
+    setActiveChat({ student, roomId });
 
-const payload = {
-subjects: profile.subjects || '',
-classes: profile.classes || '',
-experience: profile.experience || '',
-qualifications: profile.qualifications || '',
-location: profile.location || { city: '' },
-mode: modeState || 'both',
-bio: profile.bio || ''
-};
+    try {
+      const res = await getMessagesForRoom(roomId, 1, 100);
+      setMessages(res.messages || []);
+      socket.emit("join_room", roomId);
+    } catch {
+      toast.error("Failed to load messages");
+    }
+  };
 
-const res = await updateTeacherProfile(payload);
-const updated = res?.profile || res;
-setProfile(updated);
-if (updated?.mode) setModeState(updated.mode);
-setEditing(false);
-toast.success(res?.message || 'Profile saved');
-} catch (err: any) {
-console.error('Profile save error', err);
-toast.error(err?.message || 'Failed to save profile');
-} finally {
-setProfileLoading(false);
-}
-};
+  const sendMessage = () => {
+    if (!messageText.trim() || !activeChat) return;
 
-if (loading) return <div className="min-h-screen flex items-center justify-center">Loading...</div>;
-if (error) return <div className="min-h-screen flex items-center justify-center text-red-500">{error}</div>;
+    socket.emit("send_message", {
+      roomId: activeChat.roomId,
+      senderId: userId,
+      recipientId: activeChat.student._id,
+      text: messageText.trim()
+    });
 
-const startMeeting = async () => {
-const res = await createMeeting();
-if (res.success) {
-window.location.href = res.meetingUrl;
-}
-};
+    setMessageText("");
+  };
 
-return (
-<div className="min-h-screen bg-gray-50">
-<Header />
+  useEffect(() => {
+    const onReceive = (msg: any) => {
+      if (msg.roomId === activeChat?.roomId) {
+        setMessages(prev => [...prev, msg]);
+      }
+    };
 
-<div className="container mx-auto px-4 py-8">
-<div className="mb-8">
-<h1 className="text-3xl font-bold text-gray-900 mb-2">
-Welcome back, {user?.name || (profile?.userId?.name ?? 'Teacher')}!
-</h1>
-<p className="text-gray-600">
-Manage your teaching schedule and connect with students
-</p>
-</div>
+    socket.on("receive_message", onReceive);
+    return () => {
+      socket.off("receive_message", onReceive);
+    };
+  }, [activeChat]);
 
-{/* Stats Cards */}
-<div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-<Card>
-<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-<CardTitle className="text-sm font-medium">Total Students</CardTitle>
-<Users className="h-4 w-4 text-muted-foreground" />
-</CardHeader>
-<CardContent>
-<div className="text-2xl font-bold">{stats.totalStudents}</div>
-<p className="text-xs text-muted-foreground">Active learners</p>
-</CardContent>
-</Card>
+  /* ---------------- VIDEO CALL ---------------- */
+  const startCall = () => {
+    if (!activeChat) return;
 
-<Card>
-<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-<CardTitle className="text-sm font-medium">Active Requests</CardTitle>
-<MessageSquare className="h-4 w-4 text-muted-foreground" />
-</CardHeader>
-<CardContent>
-<div className="text-2xl font-bold">{stats.activeRequests}</div>
-<p className="text-xs text-muted-foreground">Pending responses</p>
-</CardContent>
-</Card>
+    const roomId = `class_${activeChat.student._id}`;
 
-<Card>
-<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-<CardTitle className="text-sm font-medium">Sessions Completed</CardTitle>
-<TrendingUp className="h-4 w-4 text-muted-foreground" />
-</CardHeader>
-<CardContent>
-<div className="text-2xl font-bold">{stats.completedSessions}</div>
-<p className="text-xs text-muted-foreground">Total teaching hours</p>
-</CardContent>
-</Card>
+    socket.emit("start-call", {
+      toUserId: activeChat.student._id,
+      fromUser: { id: userId, name: user?.name },
+      roomId
+    });
 
-<Card>
-<CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-<CardTitle className="text-sm font-medium">Rating</CardTitle>
-<Star className="h-4 w-4 text-muted-foreground" />
-</CardHeader>
-<CardContent>
-<div className="text-2xl font-bold flex items-center">
-{stats.rating}
-<Star className="h-5 w-5 fill-yellow-400 text-yellow-400 ml-1" />
-</div>
-<p className="text-xs text-muted-foreground">Average rating</p>
-</CardContent>
-</Card>
-</div>
+    window.open(`https://meet.jit.si/${roomId}`, "_blank");
+  };
 
-<Tabs defaultValue="requests" className="space-y-6">
-<TabsList className="grid w-full grid-cols-3">
-<TabsTrigger value="requests">Meeting Requests</TabsTrigger>
-<TabsTrigger value="schedule">Schedule</TabsTrigger>
-<TabsTrigger value="profile">Profile</TabsTrigger>
-</TabsList>
+  /* ---------------- SAVE PROFILE ---------------- */
+  const handleSaveProfile = async (e?: React.FormEvent) => {
+    e?.preventDefault();
+    if (!profile) {
+      toast.error("Profile not loaded");
+      return;
+    }
 
-<TabsContent value="requests" className="space-y-6">
-<h2 className="text-lg font-semibold">Student Meeting Requests</h2>
+    try {
+      setProfileLoading(true);
+      const { updateTeacherProfile } = await import("@/lib/api");
 
-{meetingRequests.length === 0 ? (
-<div className="p-6 bg-white rounded border text-sm text-muted-foreground">No meeting requests yet.</div>
-) : (
-<div className="space-y-4">
-{meetingRequests.map((r: any) => (
-<Card key={r._id} className="border-l-4 border-l-blue-500">
-        <CardContent className="p-6">
-                <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                                <h3 className="font-semibold text-lg">{r.studentId?.name || r.studentId}</h3>
-                                <p className="text-sm text-muted-foreground mb-2">{r.subject} • Class {r.class}</p>
-                                <div className="bg-gray-50 p-3 rounded mt-3 text-sm">{r.message}</div>
-                                <div className="mt-4 flex items-center justify-between">
-                                        <Badge className={getStatusColor(r.status)}>{r.status}</Badge>
-                                        {r.teacherResponse && (
-                                                <span className="text-xs text-gray-500">Response: {r.teacherResponse}</span>
-                                        )}
-                                </div>
-                        </div>
-                        <div className="flex gap-2 ml-4">
-                                {r.status === 'pending' && (
-                                        <>
-                                                <Dialog>
-                                                        <DialogTrigger asChild>
-                                                                <Button className="bg-green-600 hover:bg-green-700 text-white" size="sm" onClick={() => setSelectedRequest(r)}>
-                                                                        Accept
-                                                                </Button>
-                                                        </DialogTrigger>
-                                                        <DialogContent>
-                                                                <DialogHeader>
-                                                                        <DialogTitle>Accept Meeting Request</DialogTitle>
-                                                                                                                                                    <DialogDescription>Write an optional message to the student and optionally propose a date/time.</DialogDescription>
-                                                                </DialogHeader>
-                                                                <div className="space-y-4">
-                                                                        <div>
-                                                                                <Label>Your Response Message</Label>
-                                                                                <Textarea
-                                                                                        placeholder="Share any details about the meeting, your expectations, or how you'll help the student..."
-                                                                                        value={responseMessage}
-                                                                                        onChange={(e) => setResponseMessage(e.target.value)}
-                                                                                        className="mt-2"
-                                                                                />
-                                                                        </div>
-                                                                        <div>
-                                                                                <Label>Proposed Meeting Date & Time (Optional)</Label>
-                                                                                <Input
-                                                                                        type="datetime-local"
-                                                                                        value={proposedTime}
-                                                                                        onChange={(e) => setProposedTime(e.target.value)}
-                                                                                        className="mt-2"
-                                                                                />
-                                                                        </div>
-                                                                        <div className="flex gap-2">
-                                                                                <Button
-                                                                                        className="bg-green-600 hover:bg-green-700"
-                                                                                        onClick={() => handleResponse(selectedRequest?._id, 'accept')}
-                                                                                >
-                                                                                        Accept Request
-                                                                                </Button>
-                                                                                <Button variant="outline" onClick={() => { setSelectedRequest(null); setResponseMessage(''); setProposedTime(''); }}>
-                                                                                        Cancel
-                                                                                </Button>
-                                                                        </div>
-                                                                </div>
-                                                        </DialogContent>
-                                                </Dialog>
+      const payload = {
+        subjects: profile.subjects || "",
+        classes: profile.classes || "",
+        achievements: profile.achievements || [],
+        experience: profile.experience || "",
+        qualifications: profile.qualifications || "",
+        bio: profile.bio || "",
+        mode: modeState,
+        location: profile.location || { city: "", state: "" }
+      };
 
-                                                <Dialog>
-                                                        <DialogTrigger asChild>
-                                                                <Button className="bg-red-600 hover:bg-red-700 text-white" size="sm" onClick={() => setSelectedRequest(r)}>
-                                                                        Decline
-                                                                </Button>
-                                                        </DialogTrigger>
-                                                        <DialogContent>
-                                                                <DialogHeader>
-                                                                        <DialogTitle>Decline Meeting Request</DialogTitle>
-                                                                                                                                                    <DialogDescription>Optionally explain why you are declining. This message will be sent to the student.</DialogDescription>
-                                                                </DialogHeader>
-                                                                <div className="space-y-4">
-                                                                        <div>
-                                                                                <Label>Reason (Optional)</Label>
-                                                                                <Textarea
-                                                                                        placeholder="Let the student know why you can't meet (schedule conflict, subject mismatch, etc.)..."
-                                                                                        value={responseMessage}
-                                                                                        onChange={(e) => setResponseMessage(e.target.value)}
-                                                                                        className="mt-2"
-                                                                                />
-                                                                        </div>
-                                                                        <div className="flex gap-2">
-                                                                                <Button
-                                                                                        className="bg-red-600 hover:bg-red-700"
-                                                                                        onClick={() => handleResponse(selectedRequest?._id, 'decline')}
-                                                                                >
-                                                                                        Decline Request
-                                                                                </Button>
-                                                                                <Button variant="outline" onClick={() => { setSelectedRequest(null); setResponseMessage(''); }}>
-                                                                                        Cancel
-                                                                                </Button>
-                                                                        </div>
-                                                                </div>
-                                                        </DialogContent>
-                                                </Dialog>
-                                        </>
-                                )}
-                                {r.status === 'accepted' && (
-                                        <Button
-                                                className="bg-blue-600 hover:bg-blue-700 text-white"
-                                                size="sm"
-                                                onClick={() => {
-                                                        if (r.meetingLink) window.open(r.meetingLink, '_blank');
-                                                        else {
-                                                                createMeeting().then(res => { if (res?.meetingUrl) window.open(res.meetingUrl, '_blank'); });
-                                                        }
-                                                }}
-                                        >
-                                                Start Video Call
-                                        </Button>
-                                )}
-                                {(r.status === 'declined' || r.status === 'rejected') && (
-                                        <Badge className="bg-red-100 text-red-800">Declined</Badge>
-                                )}
-                        </div>
-                </div>
-        </CardContent>
-</Card>
-))}
-</div>
-)}
-</TabsContent>
+      const res = await updateTeacherProfile(payload);
+      setProfile(res.profile || res);
+      setEditing(false);
+      toast.success("Profile updated");
+    } catch (err) {
+      toast.error("Failed to save profile");
+    } finally {
+      setProfileLoading(false);
+    }
+  };
 
-<TabsContent value="schedule" className="space-y-6">
-<div>
-<h2 className="text-2xl font-semibold mb-6 flex items-center">
-<Calendar className="mr-2 h-6 w-6" />
-Upcoming Classes
-</h2>
+  // for requests 
+  const handleResponse = async (requestId: string, action: 'accept' | 'decline') => {
+    try {
+      const { respondToRequest } = await import('@/lib/api');
+      const payload: any = {
+        status: action === 'accept' ? 'accepted' : 'declined',
+        response: responseMessage.trim() || ''
+      };
+      if (action === 'accept' && proposedTime) {
+        const dt = new Date(proposedTime);
+        payload.scheduledDate = dt.toISOString();
+        payload.scheduledTime = dt.toLocaleTimeString();
+      }
+      const res = await respondToRequest(requestId, payload);
+      toast.success(res.message || `Request ${payload.status} successfully`);
+      // update local state
+      setMeetingRequests((prev) => prev.map((r: any) => r._id === requestId ? { ...r, status: payload.status, teacherResponse: responseMessage, scheduledDate: payload.scheduledDate } : r));
+      setSelectedRequest(null);
+      setResponseMessage('');
+      setProposedTime('');
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to respond');
+    }
+  }; 
+  // const getStatusColor = (status: string) => {
+  //   switch (status) {
+  //     case 'pending': return 'bg-yellow-100 text-yellow-800';
+  //     case 'responded': return 'bg-blue-100 text-blue-800';
+  //     case 'accepted': return 'bg-green-100 text-green-800';
+  //     case 'declined':
+  //     case 'rejected': return 'bg-red-100 text-red-800';
+  //     default: return 'bg-gray-100 text-gray-800';
+  //   }
+  // };
 
-<div className="space-y-4">
-{upcomingClasses.map((classItem) => (
-<Card key={classItem._id}>
-<CardContent className="p-6">
-<div className="flex justify-between items-center">
-<div>
-<h3 className="font-semibold text-lg">{classItem.studentId?.name || 'Unknown'}</h3>
-<p className="text-gray-600">{classItem.subject}</p>
-<div className="flex items-center mt-2 text-sm text-gray-500">
-<Clock className="mr-1 h-4 w-4" />
-{classItem.scheduledDate ? new Date(classItem.scheduledDate).toLocaleString() : ''} • {classItem.scheduledTime || ''}
-</div>
-</div>
-<div className="text-right">
-<Badge variant={classItem.mode === 'online' ? 'default' : 'secondary'}>
-{classItem.mode}
-</Badge>
-<div className="mt-2">
-<Button size="sm" variant="outline" className="mr-2">
-Reschedule
-</Button>
-<Button size="sm">
-{classItem.mode === 'online' ? 'Join Call' : 'Mark Present'}
-</Button>
-</div>
-</div>
-</div>
-</CardContent>
-</Card>
-))}
-</div>
-</div>
-</TabsContent>
 
-<TabsContent value="profile" className="space-y-6">
-<Card>
-<CardHeader>
-<CardTitle className="flex items-center">
-<Settings className="mr-2 h-5 w-5" />
-Profile Settings
-</CardTitle>
-<CardDescription>
-Manage your teaching profile and preferences
-</CardDescription>
-</CardHeader>
-<CardContent className="space-y-6">
+  if (loading) return <div className="p-8">Loading…</div>;
 
-<form onSubmit={async (e) => {
-e.preventDefault();
-setProfileLoading(true);
-try {
-const form = e.currentTarget as HTMLFormElement;
-const fd = new FormData(form);
-// read fields safely (Select uses controlled mode)
-const payload = {
-subjects: (fd.get('subjects') as string) || '',
-classes: (fd.get('classes') as string) || '',
-experience: (fd.get('experience') as string) || '',
-qualifications: (fd.get('qualifications') as string) || '',
-location: {
-city: (fd.get('city') as string) || '',
-},
-mode: modeState || (fd.get("mode") as string) || "both",
-bio: (fd.get('bio') as string) || '',
-achievements: ((fd.get('achievements') as string) || '').split('\n').filter((a: string) => a.trim())
-};
-const { updateTeacherProfile } = await import('@/lib/api');
-const res = await updateTeacherProfile(payload);
-if (res.profile) setProfile(res.profile);
-setEditing(false);
-toast.success('Profile updated');
-} catch (err: any) {
-toast.error(err?.message || 'Update failed');
-} finally {
-setProfileLoading(false);
-}
-}}>
-<div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-<div>
-<Label htmlFor="subjects">Subjects</Label>
-<Input id="subjects" name="subjects" defaultValue={profile?.subjects || ''} disabled={!editing} className="mt-2" required />
-</div>
-<div>
-<Label htmlFor="classes">Classes</Label>
-<Input id="classes" name="classes" defaultValue={profile?.classes || ''} disabled={!editing} className="mt-2" required />
-</div>
-<div>
-<Label htmlFor="experience">Experience</Label>
-<Input id="experience" name="experience" defaultValue={profile?.experience || ''} disabled={!editing} className="mt-2" />
-</div>
-</div>
-<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
-<div>
-<Label htmlFor="qualifications">Qualifications</Label>
-<Input id="qualifications" name="qualifications" defaultValue={profile?.qualifications || ''} disabled={!editing} className="mt-2" />
-</div>
-<div>
-<Label htmlFor="city">City</Label>
-<Input id="city" name="city" defaultValue={profile?.location?.city || ''} disabled={!editing} className="mt-2" required />
-</div>
-<div>
-<Label htmlFor="mode">Teaching Mode</Label>
-<Select name="mode" value={modeState} onValueChange={(v) => setModeState(v)} disabled={!editing}>
-<SelectTrigger className="w-full mt-2">
-<SelectValue placeholder="Select mode" />
-</SelectTrigger>
-<SelectContent>
-<SelectItem value="online">Online</SelectItem>
-<SelectItem value="offline">Offline</SelectItem>
-<SelectItem value="both">Both</SelectItem>
-</SelectContent>
-</Select>
-</div>
-</div>
-<div className="mt-6">
-<Label htmlFor="bio">Bio</Label>
-<Textarea id="bio" name="bio" defaultValue={profile?.bio || ''} disabled={!editing} className="mt-2" />
-</div>
-<div className="mt-6">
-<Label htmlFor="achievements">Achievements (one per line)</Label>
-<Textarea
-id="achievements"
-name="achievements"
-placeholder="Add your achievements like 'Gold Medal in Math Olympiad', 'Certified by XYZ Board', etc. (one per line)"
-defaultValue={(profile?.achievements || []).join('\n')}
-disabled={!editing}
-className="mt-2"
-rows={4}
-/>
-</div>
-<div className="mt-4 flex gap-2">
-{!editing && <Button type="button" onClick={() => setEditing(true)}>Edit</Button>}
-{editing && <Button type="submit" className="bg-blue-600">Save Changes</Button>}
-{editing && <Button type="button" variant="outline" onClick={() => setEditing(false)}>Cancel</Button>}
+  const pending = meetingRequests.filter(r => r.status === "pending");
+  const accepted = meetingRequests.filter(r => r.status === "accepted");
+  const declined = meetingRequests.filter(r => r.status === "declined");
 
-{/* Start Video Call is shown per-request when a request is accepted */}
-</div>
-</form>
 
-</CardContent>
-</Card>
-</TabsContent>
-</Tabs>
-</div>
-</div>
-);
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <Header />
+
+      <div className="container mx-auto px-4 py-6">
+        <h1 className="text-2xl font-bold mb-4">Welcome, {user?.name}</h1>
+
+        <Tabs defaultValue="home">
+          <TabsList>
+            <TabsTrigger value="home"><Home className="h-4 w-4 mr-1" /> Home</TabsTrigger>
+            <TabsTrigger value="requests"><Home className="h-4 w-4 mr-1" /> Requests</TabsTrigger>
+            <TabsTrigger value="chat"><MessageSquare className="h-4 w-4 mr-1" /> Chat</TabsTrigger>
+            <TabsTrigger value="profile"><Settings className="h-4 w-4 mr-1" /> Profile</TabsTrigger>
+          </TabsList>
+
+          {/* HOME */}
+          <TabsContent value="home">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+              <Card>
+                <CardContent className="p-6">
+                  <div className="text-sm text-gray-500">Total Requests</div>
+                  <div className="text-3xl font-bold">{meetingRequests.length}</div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="text-sm text-gray-500">Incoming</div>
+                  <div className="text-3xl font-bold text-yellow-600">
+                    {pending.length}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="text-sm text-gray-500">Accepted</div>
+                  <div className="text-3xl font-bold text-green-600">
+                    {accepted.length}
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card>
+                <CardContent className="p-6">
+                  <div className="text-sm text-gray-500">Declined</div>
+                  <div className="text-3xl font-bold text-red-600">
+                    {declined.length}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          </TabsContent>
+          {/* REQUESTS */}
+          <TabsContent value="requests">
+            {pending.length === 0 && (
+              <div className="text-gray-500">No incoming requests</div>
+            )}
+
+            {pending.map(r => (
+              <Card key={r._id} className="mb-3">
+                <CardContent className="flex justify-between items-center">
+                  <div>
+                    <div className="font-semibold">{r.studentId?.name}</div>
+                    <div className="text-sm text-gray-500">
+                      {r.subject} — Class {r.class}
+                    </div>
+                  </div>
+
+                  <Button onClick={() => setSelectedRequest(r)}>
+                    Respond
+                  </Button>
+                </CardContent>
+              </Card>
+            ))}
+          </TabsContent>
+
+
+          {/* CHAT */}
+          <TabsContent value="chat">
+            <div className="flex h-[70vh] border rounded overflow-hidden">
+              {/* LEFT */}
+              <div className="w-1/3 border-r overflow-auto">
+                {accepted.map(r => (
+                  <div
+                    key={r._id}
+                    onClick={() => openChat(r.studentId)}
+                    className={`p-3 cursor-pointer hover:bg-gray-100 ${activeChat?.student?._id === r.studentId._id && "bg-gray-200"
+                      }`}
+                  >
+                    {r.studentId?.name}
+                  </div>
+                ))}
+              </div>
+
+              {/* RIGHT */}
+              <div className="flex-1 flex flex-col">
+                {activeChat ? (
+                  <>
+                    <div className="p-3 border-b flex justify-between items-center">
+                      <div className="font-medium">{activeChat.student.name}</div>
+                      <Button size="sm" onClick={startCall}>
+                        <Video className="h-4 w-4 mr-1" /> Call
+                      </Button>
+                    </div>
+
+                    <div className="flex-1 overflow-auto p-4 space-y-2">
+                      {messages.map((m, i) => {
+                        const isMe = String(m.senderId) === String(userId);
+                        return (
+                          <div key={i} className={isMe ? "text-right" : "text-left"}>
+                            <div className={`inline-block px-3 py-2 rounded ${isMe ? "bg-blue-600 text-white" : "bg-gray-200"
+                              }`}>
+                              {m.text}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    <div className="p-3 border-t flex gap-2">
+                      <Input
+                        value={messageText}
+                        onChange={e => setMessageText(e.target.value)}
+                        placeholder="Type message…"
+                      />
+                      <Button onClick={sendMessage}>Send</Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="flex-1 flex items-center justify-center text-gray-400">
+                    Select a student to start chatting
+                  </div>
+                )}
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* PROFILE */}
+          <TabsContent value="profile">
+            <Card>
+              <CardContent className="space-y-4">
+
+                <form onSubmit={handleSaveProfile} className="space-y-4">
+
+                  <div>
+                    <Label>Subjects</Label>
+                    <Input
+                      disabled={!editing}
+                      value={profile?.subjects || ''}
+                      onChange={e => setProfile({ ...profile, subjects: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Classes</Label>
+                    <Input
+                      disabled={!editing}
+                      value={profile?.classes || ''}
+                      onChange={e => setProfile({ ...profile, classes: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Experience</Label>
+                    <Input
+                      disabled={!editing}
+                      value={profile?.experience || ''}
+                      onChange={e => setProfile({ ...profile, experience: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Qualifications</Label>
+                    <Input
+                      disabled={!editing}
+                      value={profile?.qualifications || ''}
+                      onChange={e => setProfile({ ...profile, qualifications: e.target.value })}
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Achievements (comma separated)</Label>
+                    <Input
+                      disabled={!editing}
+                      value={(profile?.achievements || []).join(', ')}
+                      onChange={e =>
+                        setProfile({
+                          ...profile,
+                          achievements: e.target.value.split(',').map(a => a.trim())
+                        })
+                      }
+                    />
+                  </div>
+
+                  <div>
+                    <Label>Bio</Label>
+                    <Textarea
+                      disabled={!editing}
+                      value={profile?.bio || ''}
+                      onChange={e => setProfile({ ...profile, bio: e.target.value })}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>City</Label>
+                      <Input
+                        disabled={!editing}
+                        value={profile?.location?.city || ''}
+                        onChange={e =>
+                          setProfile({
+                            ...profile,
+                            location: { ...profile.location, city: e.target.value }
+                          })
+                        }
+                      />
+                    </div>
+
+                    <div>
+                      <Label>State</Label>
+                      <Input
+                        disabled={!editing}
+                        value={profile?.location?.state || ''}
+                        onChange={e =>
+                          setProfile({
+                            ...profile,
+                            location: { ...profile.location, state: e.target.value }
+                          })
+                        }
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Mode</Label>
+                    <select
+                      disabled={!editing}
+                      value={modeState}
+                      onChange={e => setModeState(e.target.value as any)}
+                      className="w-full border rounded px-3 py-2"
+                    >
+                      <option value="online">Online</option>
+                      <option value="offline">Offline</option>
+                      <option value="both">Both</option>
+                    </select>
+                  </div>
+
+                  {!editing ? (
+                    <Button type="button" onClick={() => setEditing(true)}>
+                      Edit Profile
+                    </Button>
+                  ) : (
+                    <Button type="submit" disabled={profileLoading}>
+                      Save Profile
+                    </Button>
+                  )}
+
+                </form>
+
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+        </Tabs>
+
+
+      </div>
+      {/* RESPOND MODAL */}
+      <Dialog
+        open={!!selectedRequest}
+        onOpenChange={() => setSelectedRequest(null)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>
+              Respond to {selectedRequest?.studentId?.name}
+            </DialogTitle>
+          </DialogHeader>
+
+          <Textarea
+            placeholder="Response message"
+            value={responseMessage}
+            onChange={e => setResponseMessage(e.target.value)}
+          />
+
+          <Input
+            type="datetime-local"
+            value={proposedTime}
+            onChange={e => setProposedTime(e.target.value)}
+          />
+
+          <div className="flex gap-2 justify-end">
+            <Button
+              onClick={() =>
+                handleResponse(selectedRequest!._id, "accept")
+              }
+            >
+              Accept
+            </Button>
+
+            <Button
+              variant="outline"
+              onClick={() =>
+                handleResponse(selectedRequest!._id, "decline")
+              }
+            >
+              Decline
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+
+    </div>
+  );
 };
 
 export default TeacherDashboard;
-
-
-/* Added Start Meeting Button */

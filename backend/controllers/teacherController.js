@@ -120,6 +120,25 @@ const getTeacherById = async (req, res) => {
 };
 
 /**
+ * Get number of accepted students for a teacher (student-facing stat)
+ */
+const getTeacherStudentsCount = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const teacher = await Teacher.findById(id);
+    if (!teacher) return res.status(404).json({ message: 'Teacher not found' });
+
+    const MeetingRequest = require('../models/MeetingRequest');
+    const count = await MeetingRequest.countDocuments({ teacherId: teacher.userId, status: 'accepted' });
+
+    return res.json({ success: true, count });
+  } catch (err) {
+    console.error('getTeacherStudentsCount error:', err);
+    return res.status(500).json({ message: 'Server error' });
+  }
+};
+
+/**
  * Get teacher profile by logged-in user (teacher dashboard)
  * 🔧 FIX: auto-create instead of 404
  */
@@ -203,6 +222,7 @@ module.exports = {
   createTeacherProfile,
   updateTeacherProfile,
   getTeacherById,
+  getTeacherStudentsCount,
   getMyTeacherProfile,
   searchTeachers,
   getTeacherProfileByUserId,
