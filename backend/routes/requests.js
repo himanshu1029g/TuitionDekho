@@ -2,9 +2,7 @@ const express = require('express');
 const router = express.Router();
 const Request = require('../models/Request');
 const User = require('../models/User'); // assuming a User model exists
-const { sendEvent } = require('../services/kafka');
 const { v4: uuidv4 } = require('uuid');
-const redis = require('../services/redisClient');
 
 /**
  * Student creates a request to a teacher
@@ -24,8 +22,7 @@ router.post('/', async (req, res, next) => {
       scheduledAt: scheduledAt ? new Date(scheduledAt) : undefined
     });
 
-    // send event to kafka
-    sendEvent('request-logs', { type: 'REQUEST_CREATED', requestId: reqDoc._id, studentId, teacherId, timestamp: new Date() });
+
 
     res.status(201).json(reqDoc);
   } catch (err) { next(err); }
@@ -66,11 +63,11 @@ router.patch('/:id', async (req, res, next) => {
       reqDoc.meetingLink = process.env.MEETING_BASE_URL ? process.env.MEETING_BASE_URL + '/' + uuidv4() : 'https://meet.example.com/' + uuidv4();
       await reqDoc.save();
 
-      sendEvent('request-logs', { type: 'REQUEST_ACCEPTED', requestId: reqDoc._id, teacherId, timestamp: new Date() });
+
     } else if (action === 'reject') {
       reqDoc.status = 'Rejected';
       await reqDoc.save();
-      sendEvent('request-logs', { type: 'REQUEST_REJECTED', requestId: reqDoc._id, teacherId, timestamp: new Date() });
+
     } else {
       return res.status(400).json({ message: 'Invalid action' });
     }

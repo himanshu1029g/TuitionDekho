@@ -9,45 +9,15 @@ services:
     volumes:
       - mongo_data:/data/db
 
-  redis:
-    image: redis:7
-    restart: unless-stopped
-    ports:
-      - 6379:6379
-
-  zookeeper:
-    image: bitnami/zookeeper:latest
-    environment:
-      - ALLOW_ANONYMOUS_LOGIN=yes
-    ports:
-      - 2181:2181
-
-  kafka:
-    image: bitnami/kafka:latest
-    depends_on:
-      - zookeeper
-    environment:
-      - KAFKA_BROKER_ID=1
-      - ALLOW_PLAINTEXT_LISTENER=yes
-      - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
-      - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
-      - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
-    ports:
-      - 9092:9092
-
   backend:
     build:
       context: ./backend
       dockerfile: Dockerfile
     environment:
       - MONGO_URI=mongodb://mongo:27017/tuitiondekho
-      - REDIS_URL=redis://redis:6379
-      - KAFKA_BROKERS=kafka:9092
       - NODE_ENV=production
     depends_on:
       - mongo
-      - redis
-      - kafka
     ports:
       - 5000:5000
 
