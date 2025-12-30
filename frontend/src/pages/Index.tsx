@@ -11,6 +11,7 @@ import LoginModal from '@/components/LoginModal';
 import { searchTeachers } from '@/lib/api';
 import { useUser } from '@/contexts/UserContext';
 import { formatLocation } from '@/lib/utils';
+const logo = '/logo.png';
 
 // import city/state package
 import { City, State } from 'country-state-city';
@@ -80,8 +81,9 @@ const Index = () => {
       <header className="bg-white/80 backdrop-blur-md shadow-sm sticky top-0 z-50">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center space-x-2">
-            <GraduationCap className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-bold text-primary">TuitionDekho.com</h1>
+            {/* <GraduationCap className="h-8 w-8 text-primary" /> */}
+            <img src={logo} alt="logo_img" width={40} height={50} />
+            <h1 className="text-2xl font-bold text-primary"> TuitionDekho.com</h1>
           </div>
           <nav className="hidden md:flex items-center space-x-6">
             <a href="#features" className="text-gray-600 hover:text-primary transition-colors">Features</a>
