@@ -1,8 +1,0 @@
-1 request flow ...issue ..
-As I see in student the request tab which only show you have sended the. Request to teacher but does not show the message itself. On the other hand. The teacher gets only the. Info Dad. Students send you message. But does not show the actual request message. So resolve this. Also maybe it will be good. To. To completely change my request tab. In student dashboard. In this. When we send some requests to teacher. It shows. The request message. And I also want that in the quest. User. Student. Specifically. Mention there class. Subject. Or mode. End message. Then send the request message. And in their request tab. They will show their message. And after getting response he will see there. Response. 
-
-In teacher dashboard. The request tab. Will show the message and other details of student. That will send by the student. And then. Teacher. Will response the message end user. Student get the response.
-
-
-As in. Teacher profile. Please remove the. Chat navigation like something. A student can only send the requested message to teacher.
-no message ...chat vala...
