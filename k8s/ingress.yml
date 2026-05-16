@@ -1,0 +1,41 @@
+---
+# ══════════════════════════════════════════════════════════════════
+# Ingress — Contour Ingress for Kind cluster
+# Host: tuitiondekho.com
+# Add to C:\Windows\System32\drivers\etc\hosts:
+# 127.0.0.1  tuitiondekho.com
+# ══════════════════════════════════════════════════════════════════
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: tuitiondekho-ingress
+  namespace: tuitiondekho
+  annotations:
+    projectcontour.io/websocket-routes: "/socket.io"
+spec:
+  ingressClassName: contour
+  rules:
+    - host: tuitiondekho.com
+      http:
+        paths:
+          - path: /api
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 5000
+          - path: /socket.io
+            pathType: Prefix
+            backend:
+              service:
+                name: backend
+                port:
+                  number: 5000
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port:
+                  number: 80
