@@ -1,34 +1,89 @@
-version: "3.8"
+# ══════════════════════════════════════════════════════════════════
+# TuitionDekho — Docker Compose (3-tier MERN)
+# ══════════════════════════════════════════════════════════════════
+#
+# Usage:
+#   docker compose up -d --build        # Build & start all services
+#   docker compose down                 # Stop all services
+#   docker compose logs -f              # Tail logs
+#
+# Push images to DockerHub:
+#   docker compose build
+#   docker compose push frontend backend
+#
+# Or manually:
+#   docker push him1029g/tuitiondekho-frontend:latest
+#   docker push him1029g/tuitiondekho-backend:latest
+# ══════════════════════════════════════════════════════════════════
 
 services:
-  mongo:
-    image: mongo:6.0
+  # ── MongoDB ────────────────────────────────────────────────────
+  mongodb:
+    image: mongo:7
     restart: unless-stopped
     ports:
-      - 27017:27017
+      - "${MONGO_PORT:-27017}:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${MONGO_ROOT_USER:-admin}
+      MONGO_INITDB_ROOT_PASSWORD: ${MONGO_ROOT_PASSWORD:-changeme}
     volumes:
       - mongo_data:/data/db
+    networks:
+      - tuitiondekho-net
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
 
+  # ── Backend (Node.js / Express API) ────────────────────────────
   backend:
+    image: him1029g/tuitiondekho-backend:latest
     build:
       context: ./backend
       dockerfile: Dockerfile
-    environment:
-      - MONGO_URI=mongodb://mongo:27017/tuitiondekho
-      - NODE_ENV=production
-    depends_on:
-      - mongo
+    restart: unless-stopped
     ports:
-      - 5000:5000
+      - "${BACKEND_PORT:-5000}:5000"
+    environment:
+      PORT: 5000
+      NODE_ENV: production
+      MONGODB_URI: mongodb://${MONGO_ROOT_USER:-admin}:${MONGO_ROOT_PASSWORD:-changeme}@mongodb:27017/tuitionDekho?authSource=admin
+      JWT_SECRET: ${JWT_SECRET}
+      MEETING_BASE_URL: ${MEETING_BASE_URL:-https://meet.jit.si}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      USE_GMAIL: ${USE_GMAIL:-false}
+      GMAIL_USER: ${GMAIL_USER:-}
+      GMAIL_APP_PASSWORD: ${GMAIL_APP_PASSWORD:-}
+      EMAIL_FROM: ${EMAIL_FROM:-}
+    depends_on:
+      mongodb:
+        condition: service_healthy
+    networks:
+      - tuitiondekho-net
 
+  # ── Frontend (React SPA via Nginx) ────────────────────────────
   frontend:
+    image: him1029g/tuitiondekho-frontend:latest
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: http://backend:5000
+        VITE_API_WS_URL: http://backend:5000
+    restart: unless-stopped
     ports:
-      - 3000:80
+      - "${FRONTEND_PORT:-3000}:80"
     depends_on:
       - backend
+    networks:
+      - tuitiondekho-net
 
 volumes:
   mongo_data:
+    driver: local
+
+networks:
+  tuitiondekho-net:
+    driver: bridge
