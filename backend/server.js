@@ -7,20 +7,39 @@ const connectDB = require('./config/database');
 // Load env
 dotenv.config();
 
+// Validate critical env vars
+if (!process.env.JWT_SECRET) {
+  console.error('FATAL: JWT_SECRET environment variable is not set');
+  process.exit(1);
+}
+
 // DB
 connectDB();
 
 const app = express();
 
 /* -------------------- MIDDLEWARE -------------------- */
+const allowedOrigins = [
+  'http://localhost:3000',
+  'http://localhost:5173',
+  process.env.FRONTEND_URL
+].filter(Boolean);
+
 app.use(cors({
-  origin: true,
+  origin: function (origin, callback) {
+    // Allow requests with no origin (mobile apps, curl, etc.)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(null, true); // permissive in dev; tighten for production
+  },
   credentials: true,
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+  methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
 
-app.use(express.json());
+app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
 /* -------------------- ROUTES -------------------- */
@@ -33,26 +52,23 @@ app.use('/api/requests', require('./routes/requests'));
 app.use('/api/chats', require('./routes/chats'));
 app.use("/api/calls", require("./routes/calls"));
 
-
+// Health check
 app.get('/', (req, res) => {
-  res.json({ message: 'Server is running!' });
+  res.json({ status: 'ok', message: 'TuitionDekho API is running' });
 });
 
-/* -------------------- TEACHERS -------------------- */
-app.get('/api/teachers/all', async (req, res, next) => {
-  try {
-    const User = require('./models/User');
-    const teachers = await User.find({ role: 'teacher' }).select('-password');
-    res.json(teachers);
-  } catch (err) {
-    next(err);
-  }
+/* -------------------- 404 HANDLER -------------------- */
+app.use((req, res) => {
+  res.status(404).json({ success: false, message: `Route ${req.originalUrl} not found` });
 });
 
 /* -------------------- ERROR HANDLER (LAST) -------------------- */
 app.use((err, req, res, next) => {
-  console.error(err.stack);
-  res.status(500).json({ message: 'Something went wrong!' });
+  const statusCode = err.statusCode || 500;
+  res.status(statusCode).json({
+    success: false,
+    message: process.env.NODE_ENV === 'production' ? 'Something went wrong' : err.message
+  });
 });
 
 /* -------------------- SOCKET.IO -------------------- */
@@ -63,5 +79,15 @@ initSocket(server);
 /* -------------------- START -------------------- */
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on port ${PORT}`);
+  console.log(`Server running on port ${PORT}`);
+});
+
+/* -------------------- UNHANDLED REJECTIONS -------------------- */
+process.on('unhandledRejection', (err) => {
+  console.error('Unhandled Rejection:', err.message);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception:', err.message);
+  process.exit(1);
 });
